@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- PWA Meta Tags for iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Schedule-Max">
+    
+    <!-- Theme color -->
+    <meta name="theme-color" content="#000000">
+    <meta name="msapplication-navbutton-color" content="#000000">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        
+    <!-- Icons for home screen -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/src/icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/src/icon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/src/icon.png">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/src/menifest.json">
+    
+    <!-- Viewport for better mobile experience -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta charset="UTF-8" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Schedule-Max" />
+    <meta property="og:description" content="Plan Your Day Ahead" />
+    <meta property="og:image" content="/src/icon.jpg" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="821" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:alt" content="Schedule-Banner" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/src/icon.png" />
+    <meta name="twitter:image:alt" content="Schedule-Max" />
+    <meta name="twitter:title" content="Schedule-Max" />
+    <meta name="twitter:description" content="Plan Your Day" />
+  <title>Schedule-Max</title>
+  <style>
+    :root{
+      --bg:#fff;
+      --fg:#000;
+      --blk:#000;
+      --wht:#fff;
+      --muted:#777;
+      --line:#0003;
+      --shadow:0 8px 24px rgba(0,0,0,0.08);
+      --radius:16px;
+      --swipe-width:144px; /* 2 actions x 72px */
+      --blue:#00d0ff;
+      --red:#ff2f00;
+      --anim-fast:.18s;
+      --anim-mid:.24s;
+    }
+    
+    .dark {
+      --bg: #000;
+      --fg: #fff;
+      --muted: #aaa;
+      --line: #fff3;
+      --blk:#fff;
+      --wht:#000;
+    }
+    
+    *{box-sizing:border-box; background-color: var(--wht);}
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--wht); /* or whatever your theme */
+    }
+    
+    
+    body::-webkit-scrollbar {
+        -webkit-appearance: none;
+        width: 0;
+        height: 0;
+    }
+    
+    html::-webkit-scrollbar {
+        -webkit-appearance: none;
+        width: 0;
+        height: 0;
+    }
+    
+    .field input:focus {
+          outline: none;
+        }
+    
+    /* Make sure this container respects iOS notch/safe area */
+    .app {
+      padding-top: env(safe-area-inset-top);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      box-sizing: border-box;
+      background: var(--wht);
+    }
+    
+    header {
+      padding-top: calc(env(safe-area-inset-top));
+      background: var(--wht);
+    }
+
+    body{
+      margin:0 0 0 0; background:var(--wht); color:var(--blk);
+      font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;
+      letter-spacing:0.2px; -webkit-text-size-adjust:100%;
+      touch-action:manipulation; /* helps block double-tap zoom on mobile */
+    }
+    /* Animations (minimal) */
+    @keyframes fadeInUp{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+    @keyframes flash{from{background:#0001}to{background:transparent}}
+    .row{animation:fadeInUp var(--anim-fast) ease both}
+    .flash{animation:flash var(--anim-mid) ease}
+
+    /* Larger invisible tap zone for task checkbox */
+    .cb-hit {
+      display: grid;
+      place-items: center;
+      width: 60px;          /* recommended minimum touch target */
+      height: 55px;
+      margin: -22px; /* expands hit area without shifting layout */
+      border-radius: 10px;  /* comfort */
+      cursor: pointer;
+    }
+    
+    
+    /* keep visual checkbox the same size */
+    .cb-hit input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+
+    
+    /* Header */
+    header{position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line)}
+    .bar{max-width:860px; margin:0 auto; padding:14px; display:flex; align-items:center; gap:10px; justify-content:space-between}
+    .title{display:flex; flex-direction:column}
+    .title b{font-size:18px}
+    .title small{color:var(--muted)}
+    .actions{display:flex; align-items:center; gap:8px}
+    .btn{
+      appearance:none; border:1px solid var(--fg); background:transparent; color:var(--fg);
+      border-radius:999px; padding:11px 12px; cursor:pointer;
+    }
+    .btn:active{transform:translateY(1px)}
+    .icon-btn{width:39px; height:39px; display:grid; place-items:center; color: var(--blk); border:1px solid var(--fg); border-radius:999px; background:var(--wht); cursor:pointer}
+
+    /* Sections */
+    main{max-width:100%; padding:14px 20px 0 20px; background-color: var(--wht); }
+    .section{margin:14px 0 10px}
+    .section h2{margin:0 0 8px; font-size:14px; text-transform:uppercase; letter-spacing:0.8px}
+
+    /* Now card */
+    .now-card{border:1px solid var(--fg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow)}
+    .now-title{display:flex; justify-content:space-between; align-items:center}
+    .now-title b{font-size:16px}
+    .time-chip{border:1px solid var(--fg); padding:4px 8px; border-radius:999px; font-size:9px}
+
+    /* Lists */
+    ul{list-style:none; margin:0; padding:0}
+    .list{border:1px solid var(--fg); border-radius:var(--radius); overflow:hidden}
+    .row{position:relative; overflow:hidden; touch-action:pan-y; border-top:1px solid var(--line); background:var(--bg)}
+    .row:first-child{border-top:none}
+
+    /* Swipe underlay (colored actions) */
+    .row-actions{
+      position:absolute; inset:0; right:0; display:flex; justify-content:flex-end; gap:0; pointer-events:none;
+    }
+    .row-actions button{
+      width:72px; border:none; border-left:1px solid var(--bg); color:#fff; pointer-events:auto; cursor:pointer; font-weight:600;
+    }
+    .btn-archive{background:var(--blue)}
+    .btn-delete{background:var(--red)}
+
+    /* Swipe foreground */
+    .swipe{
+      position:relative; z-index:1; background:var(--bg);
+      display:flex; align-items:center; gap:10px; padding:12px;
+      transform:translateX(0); transition:transform var(--anim-fast) ease; will-change:transform;
+    }
+    .swipe.revealed{transform:translateX(calc(var(--swipe-width) * -1))}
+    input[type="checkbox"]{width:18px; height:18px; accent-color:#000; cursor:pointer}
+    .task{flex:1; display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .task .meta{display:flex; flex-direction:column}
+    .task b{font-weight:600}
+    .task small{color:var(--muted)}
+    .strike{opacity:.55; text-decoration:line-through}
+
+    /* Collapsible "Missed" */
+    details.archive{border:1px solid var(--fg); border-radius:var(--radius); color: var(--blk);}
+    //details.archive > summary{list-style:none; cursor:pointer; padding:12px; display:flex; align-items:center; justify-content:center; background: transparent;}
+    details.archive > summary::-webkit-details-marker{display:none}
+    
+    /* Center pill within the whole summary box (works for Today + Tomorrow) */
+    details.archive > summary {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr; /* left | center(pill) | right */
+      align-items: center;
+      padding: 12px;
+      position: relative; /* keep for safety */
+      gap: 0;             /* no gap needed */
+      justify-content: initial; /* override old flex rule if any */
+      background: transparent;
+    }
+    
+    /* Left label */
+    details.archive > summary span:first-child {
+      grid-column: 1;
+      justify-self: start;
+      position: static;   /* cancel previous absolute positioning */
+    }
+    
+    /* Center pill */
+    details.archive > summary .pill {
+      grid-column: 2;
+      justify-self: center;
+    }
+    
+    /* Right chevron */
+    details.archive > summary .chev {
+      grid-column: 3;
+      justify-self: end;
+      position: static;   /* cancel previous absolute positioning */
+    }
+    
+    /* Hide pill when details is expanded (applies to both Missed and Tomorrow Missed) */
+    details.archive[open] .pill {
+      opacity: 0;
+    }
+
+    
+    .chev{display:inline-block; transition:transform .2s ease}
+    details[open] .chev{transform:rotate(90deg)}
+    .archive .list{border:none; border-top:1px solid var(--line); border-radius:0 0 var(--radius) var(--radius); background-color: var(--wht);}
+
+    /* FAB + sheet */
+    .fab {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 8;
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      border: none;
+      background: var(--blk);
+      color: var(--wht);
+      font-size: 28px;       /* slightly larger for good balance */
+      display: flex;         /* 👈 */
+      align-items: center;   /* 👈 */ //centering the f*cking div
+      justify-content: center; /* 👈 */
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+    .sheet-backdrop{position:fixed; inset:0; background:#0007; display:none; z-index:9}
+    .sheet{position:fixed; left:0; right:0; bottom:-100%; z-index:10; background:var(--bg); border-top:1px solid var(--fg); border-radius:18px 18px 0 0; box-shadow:var(--shadow); transition:bottom var(--anim-mid) ease; max-width:860px; margin:0 auto}
+    .sheet.open + .sheet-backdrop{display:block}
+    .sheet.open{bottom:0}
+    .sheet .head{padding:14px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; border-radius: 200px 200px 0 0;}
+    .sheet .body{padding: 14px 14px 35px 14px; display:grid; gap:12px}
+    .chooser{display:flex; gap:8px}
+    .choice{flex:1}
+    .field{display:flex; flex-direction:column; gap:6px}
+    .field input{border:1px solid var(--fg); border-radius:10px; padding:10px; background:transparent; color:var(--fg); margin: 0 6px; padding: 17px;}
+    .muted{color:var(--muted)}
+    .pill{border:1px solid var(--fg); padding:6px 10px; border-radius:999px}
+    .row .time{min-width:82px; font-variant-numeric:tabular-nums}
+    .ghost{opacity:.4}
+    .hidden{display:none !important}
+
+    
+    #chosenDayLabel {
+        margin: 2px 1px 9px 12px;
+    }
+    /* Popover menu (3-dots) */
+    .menu{
+      position:fixed; top:58px; right:14px; z-index:6; background:var(--bg);
+      border:1px solid var(--fg); border-radius:12px; box-shadow:var(--shadow); display:none; min-width:220px; overflow:hidden;
+    }
+    .menu.show{display:block}
+    .menu .menu-item{
+      width:100%; text-align:left; padding:10px 12px; border:none; background:transparent; color:var(--fg); cursor:pointer;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .menu .menu-item + .menu-item{border-top:1px solid var(--line)}
+    .menu .menu-item:active{background:#0001}
+
+    /* Tomorrow overlay: identical layout to main (Today) */
+    .overlay{position:fixed; inset:0; background:var(--bg); display:none; z-index:7}
+    .overlay.show{display:block}
+    .overlay .inner{
+      max-width:860px;
+      margin:0 auto;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      overflow-y:auto;                /* <-- enables scrolling */
+      -webkit-overflow-scrolling:touch; /* smooth iOS scrolling */
+      overscroll-behavior:contain;    /* avoid background scroll bounce */
+    }
+    .overlay header{
+      position:sticky;
+      top:0;
+      z-index:1;                      /* keep header above list while scrolling */
+    }
+    
+    .inner::-webkit-scrollbar { display: none; };
+    
+    .empty{padding:14px; color:var(--blk); background: var(--wht); background-color: var(--wht);}
+    /* Themed Custom Time Picker Wheel */
+    .custom-time-input {
+      border: 1px solid var(--fg);
+      border-radius: 10px;
+      padding: 10px;
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    .time-picker-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      z-index: 11;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--anim-fast) ease;
+    }
+    .time-picker-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .time-picker-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 30px;
+      gap: 10px;
+      padding: 20px;
+      color: var(--fg);
+      font-size: 24px;
+      height: 240px; /* Controls visible area */
+      perspective: 1000px;
+      --item-height: 48px; /* Height of each number row */
+    }
+    .picker-separator {
+      font-weight: bold;
+      font-size: 28px;
+      color: var(--fg);
+    }
+    
+    .picker-column {
+      height: 100%;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+      will-change: scroll-position; /* <-- Flickering Glitch to be fixed */
+      overscroll-behavior-y: contain; /* <-- Flickering Glitch to be fixed */
+      scroll-behavior: auto;        /* <-- Flickering Glitch to be fixed */
+    }
+    /* Hide scrollbars */
+    .picker-column::-webkit-scrollbar { display: none; }
+    .picker-column { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    .picker-item {
+      height: var(--item-height);
+      min-width: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      scroll-snap-align: center;
+      color: var(--muted);
+      opacity: 0.4;
+      transition: opacity 0.2s ease, color 0.2s ease;
+    }
+    /* Add empty spacers for correct snapping at ends */
+    .picker-column::before,
+    .picker-column::after {
+      content: '';
+      display: block;
+      height: calc(50% - var(--item-height) / 2);
+      min-height: 1px;
+    }
+
+    
+    /* New minimal Time Input Field */
+    .time-field-wrapper {
+      display: flex;
+      gap: 8px;
+    }
+    .time-field-wrapper .custom-time-input {
+      flex: 1; /* Make them take equal width */
+      text-align: center; /* Center the placeholder text */
+      margin: 25px 5px 20px 5px;
+      padding: 25px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="title">
+        <b>Today</b>
+        <small id="todayLabel">Today</small>
+      </div>
+      <div class="actions">
+        <button class="btn" id="viewTomorrowBtn" title="View tomorrow" style="padding: 10px 10px;">Tomorrow</button>
+        <button class="icon-btn" id="manageBtn" title="Manage">⋯</button>
+        <button class="btn" id="themeToggle" style="padding: 6px 7px;">
+            <svg width="23" height="21" viewBox="0 0 30 30">
+          <path fill="currentColor" d="M 23, 5 A 12 12 0 1 0 23, 25 A 12 12 0 0 1 23, 5"/>
+        </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- NOW -->
+    <section class="section" id="nowSection">
+      <h2>Now</h2>
+      <div class="now-card" id="nowCard">
+        <div class="now-title">
+          <b id="nowTitle">Nothing right now</b>
+          <span class="time-chip" id="nowTime">—</span>
+        </div>
+        <div class="muted" id="nowHint" style="margin-top:6px">Next task will appear here when its time window starts.</div>
+      </div>
+    </section>
+
+    <!-- Today upcoming -->
+    <section class="section">
+      <h2>Today</h2>
+      <ul class="list" id="todayList"></ul>
+      <div class="empty" id="todayEmpty" style="padding: 10px 0 0 0;" >No Tasks For Today</div>
+    </section>
+
+    <!-- Completed -->
+    <section class="section">
+      <h2>Completed</h2>
+      <ul class="list" id="completedList"></ul>
+      <div class="empty" id="completedEmpty" style="padding: 10px 0 0 0; background-color: var(--wht); background: var(--wht);" hidden>No completed tasks yet.</div>
+    </section>
+
+    <!-- Missed -->
+    <section class="section">
+      <details class="archive" id="missedDetails">
+        <summary>
+          <span>Missed</span>
+          <span class="pill" id="missedCount">0</span>
+          <span class="chev">›</span>
+        </summary>
+        <ul class="list" id="missedList"></ul>
+        <div class="empty" id="missedEmpty" style="padding: 10px; background: transparent; " hidden>No missed tasks.</div>
+      </details>
+    </section>
+  </main>
+
+  <!-- Floating Add Button -->
+  <button class="fab" id="fab" aria-label="Add task">+</button>
+
+  <!-- Bottom Sheet: Add Task -->
+  <div class="sheet" id="sheet">
+    <div class="head">
+      <b>Add Task</b>
+      <button class="icon-btn" id="closeSheet" aria-label="Close">✕</button>
+    </div>
+    <div class="body">
+      <div class="chooser">
+        <button class="btn choice" id="chooseToday">Today</button>
+        <button class="btn choice" id="chooseTomorrow">Tomorrow</button>
+      </div>
+      <form id="taskForm" class="hidden">
+        <div class="muted" id="chosenDayLabel"></div>
+        <div class="field">
+          <input id="title" type="text" placeholder="Title" required />
+        </div>
+        <!-- START: New time picker block -->
+        <div class="field">
+          <div class="time-field-wrapper">
+              <div class="custom-time-input" data-role="time-picker-trigger" data-target="start">
+                  Start Time
+              </div>
+              <input id="start" type="hidden" value="09:00" required>
+              
+              <div class="custom-time-input" data-role="time-picker-trigger" data-target="end">
+                  End Time
+              </div>
+              <input id="end" type="hidden" value="10:00" required>
+          </div>
+        </div>
+        <!-- END: New Time picker block -->
+        <div style="display:flex; gap:8px; margin-top:6px">
+          <button type="button" class="btn" id="resetForm" style="flex:1; background-color: #f70b07; color: white; margin: 0 10px 0 7px;">Reset</button>
+          <button type="submit" class="btn" style="flex:1; background-color: #0796e3; color: white; margin: 0 10px 0 7px;">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+
+  <!-- Popover menu (3-dots) -->
+  <div class="menu" id="menu">
+    <button class="menu-item" id="menuClearCompleted">Clear Completed (Today) <span>⌫</span></button>
+    <button class="menu-item" id="menuClearMissed">Clear Missed (Today) <span>✖</span></button>
+    <button class="menu-item" id="menuViewTomorrow">View Tomorrow <span>›</span></button>
+  </div>
+
+  <!-- Tomorrow Overlay (same layout as Today) -->
+  <div class="overlay" id="tomorrowOverlay" aria-hidden="true">
+    <div class="inner">
+      <header>
+        <div class="bar">
+          <div class="title">
+            <b>Tomorrow</b>
+            <small id="tomorrowLabel"></small>
+          </div>
+          <div class="actions">
+            <button class="btn" id="clearTomorrowCompleted">Clear completed</button>
+            <button class="btn" id="clearTomorrowMissed">Clear missed</button>
+            <button class="icon-btn" id="closeTomorrow">✕</button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="section" id="tomNowSection">
+          <h2>Now</h2>
+          <div class="now-card" id="tomNowCard">
+            <div class="now-title">
+              <b id="tomNowTitle">Earliest task</b>
+              <span class="time-chip" id="tomNowTime">—</span>
+            </div>
+            <div class="muted" id="tomNowHint" style="margin-top:6px">Preview of the first task tomorrow.</div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Tomorrow</h2>
+          <ul class="list" id="tomorrowList"></ul>
+          <div class="empty" id="tomorrowEmpty" style="padding: 10px 0 0 0;" hidden>No tasks for tomorrow yet.</div>
+        </section>
+
+        <section class="section">
+          <h2>Completed</h2>
+          <ul class="list" id="tomorrowCompleted"></ul>
+          <div class="empty" id="tomorrowCompletedEmpty" style = "padding: 10px 0 0 0;" hidden>No completed tasks.</div>
+        </section>
+
+        <section class="section">
+          <details class="archive" id="tomorrowMissedDetails">
+            <summary>
+              <span>Missed</span>
+              <span class="pill" id="tomorrowMissedCount">0</span>
+              <span class="chev">›</span>
+            </summary>
+            <ul class="list" id="tomorrowMissed"></ul>
+            <div class="empty" id="tomorrowMissedEmpty" style="padding: 10px; background: transparent;" hidden>No missed tasks.</div>
+          </details>
+        </section>
+      </main>
+    </div>
+  </div>
+  
+  <!-- START: New time picker overlay layout -->
+  <div id="timePickerOverlay" class="time-picker-overlay">
+      <div class="time-picker-container">
+          <div class="picker-column" id="hourPicker"></div>
+          <div class="picker-separator">:</div>
+          <div class="picker-column" id="minutePicker"></div>
+          <div class="picker-column" id="ampmPicker"></div>
+      </div>
+  </div>
+  <!-- END  -->
+
+  <script>
+  (function(){
+    const STORAGE_KEY = 'scheduleMax.v2'; // bump key (new UI)
+    let lastHighlight = null; // for subtle flash after move
+
+    // ===== Utilities =====
+    const pad = n => String(n).padStart(2,'0');
+    const toKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const todayDate = () => new Date();
+    const tomorrowDate = () => { const d = todayDate(); d.setDate(d.getDate()+1); return d; };
+    const timeToMin = t => { const [h,m] = t.split(':').map(Number); return h*60 + m; };
+    const minToTime = m => { m=((m%1440)+1440)%1440; const h=Math.floor(m/60), mm=m%60; return `${pad(h)}:${pad(mm)}`; };
+    const getCssVar = name => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+
+    function uid(){ return Math.random().toString(36).slice(2,9); }
+    // ------------------------ WEEKLY TEMPLATES (0=Sun,1=Mon,..6=Sat) ------------------------
+    const WEEKLY_TEMPLATES = {
+      1: [ // Monday
+        { title:"Wake up & water", start:"06:30", end:"06:45" },
+        { title:"Walk & sunlight", start:"07:00", end:"07:30" },
+        { title:"Study C++", start:"08:00", end:"10:00" },
+        { title:"Breakfast", start:"10:00", end:"10:30" },
+        { title:"Project: WTF v2", start:"11:00", end:"12:30" },
+        { title:"Lunch", start:"13:00", end:"13:30" },
+        { title:"OOP Notes (Unit 1)", start:"15:00", end:"16:00" },
+        { title:"Gym", start:"17:30", end:"18:30" },
+        { title:"Dinner", start:"19:15", end:"20:00" },
+        { title:"DSA practice", start:"20:15", end:"22:00" },
+      ],
+      2: [ // Tuesday
+        { title:"Wake up & water", start:"06:30", end:"06:45" },
+        { title:"Java basics", start:"07:30", end:"09:30" },
+        { title:"Break", start:"09:30", end:"10:00" },
+        { title:"Cloudflare Pages deploy", start:"10:30", end:"12:00" },
+        { title:"Lunch", start:"13:00", end:"13:30" },
+        { title:"Android dev: basics", start:"14:00", end:"16:00" },
+        { title:"Project time", start:"16:30", end:"18:00" },
+        { title:"Evening study (algos)", start:"20:00", end:"22:00" },
+      ],
+      3: [ // Wednesday
+        { title:"Wake up & water", start:"06:30", end:"06:45" },
+        { title:"Walk & sunlight", start:"07:00", end:"07:30" },
+        { title:"Web dev (HTML/CSS)", start:"08:00", end:"10:00" },
+        { title:"Breakfast", start:"10:00", end:"10:30" },
+        { title:"Portfolio & README", start:"11:00", end:"12:30" },
+        { title:"Lunch", start:"13:00", end:"13:30" },
+        { title:"Small project (micro)", start:"15:00", end:"17:00" },
+        { title:"Gym", start:"17:30", end:"18:30" },
+      ],
+      4: [ // Thursday
+        { title:"Wake up & water", start:"06:30", end:"06:45" },
+        { title:"DSA practice", start:"07:30", end:"09:30" },
+        { title:"Break", start:"09:30", end:"10:00" },
+        { title:"JavaScript deep-dive", start:"10:30", end:"12:30" },
+        { title:"Lunch", start:"13:00", end:"13:30" },
+        { title:"Cloud infra / Deploys", start:"15:00", end:"17:00" },
+        { title:"Side project", start:"18:00", end:"20:00" },
+      ],
+      5: [ // Friday
+        { title:"Wake up & water", start:"06:30", end:"06:45" },
+        { title:"Study C++", start:"07:30", end:"09:30" },
+        { title:"Break", start:"09:30", end:"10:00" },
+        { title:"System design reading", start:"10:30", end:"12:00" },
+        { title:"Lunch", start:"13:00", end:"13:30" },
+        { title:"Project focus (deployable)", start:"15:00", end:"18:00" },
+        { title:"Code review / cleanups", start:"20:00", end:"21:30" },
+      ],
+      6: [ // Saturday
+        { title:"Wake up & water", start:"07:30", end:"07:45" },
+        { title:"Content creation (reels/posts)", start:"08:30", end:"10:30" },
+        { title:"Break", start:"10:30", end:"11:00" },
+        { title:"Learning new tech (short course)", start:"11:30", end:"13:00" },
+        { title:"Project marathon", start:"14:00", end:"18:00" },
+      ],
+      0: [ // Sunday
+        { title:"Sleep in / Rest", start:"08:00", end:"09:30" },
+        { title:"Plan next week", start:"10:00", end:"11:00" },
+        { title:"Light learning / reading", start:"11:30", end:"13:00" },
+        { title:"Personal projects / hobbies", start:"15:00", end:"18:00" },
+        { title:"Relax & ok", start:"20:00", end:"22:00" },
+      ],
+    };
+    
+    // Helper: copy template tasks into DATA for a given dateKey (gives each task a new id)
+    function applyTemplateToDate(DATA_obj, dateKey, weekdayIndex){
+      const tpl = WEEKLY_TEMPLATES[weekdayIndex] || [];
+      DATA_obj[dateKey] = tpl.map(t => task(t.title, t.start, t.end));
+    }
+    
+    // ------------------------ new load() that seeds a whole week ------------------------
+    function load(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(raw){
+          // existing saved map (dateKey -> task array)
+          return JSON.parse(raw);
+        }
+      }catch(e){
+        console.warn('load error', e);
+      }
+    
+      // no saved data -> build initial week from WEEKLY_TEMPLATES
+      const data = {};
+      const today = todayDate();
+    
+      // seed next 7 days (today + next 6)
+      for(let i = 0; i < 7; i++){
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const key = toKey(d);
+        const weekday = d.getDay(); // 0 = Sunday, 1 = Monday ...
+        applyTemplateToDate(data, key, weekday);
+      }
+    
+      save(data);
+      return data;
+    }
+
+    function save(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    function task(title,start,end){ return { id: uid(), title, start, end, done:false, archived:false }; }
+    function getDayData(data, key){ return (data[key]||[]).slice(); }
+    function sortByStart(arr){ return arr.sort((a,b)=> timeToMin(a.start)-timeToMin(b.start) || a.title.localeCompare(b.title)); }
+    function partition(dataArr, nowMin){
+      const upcoming=[], completed=[], missed=[];
+      for(const t of dataArr){
+        const over = nowMin > timeToMin(t.end);
+        if(t.done) completed.push(t);
+        else if(t.archived || over) missed.push(t);
+        else upcoming.push(t);
+      }
+      sortByStart(upcoming); sortByStart(completed); sortByStart(missed);
+      return {upcoming, completed, missed};
+    }
+    function currentOrNext(list, nowMin){
+      let current=null, next=null;
+      for(const t of list){
+        const s=timeToMin(t.start), e=timeToMin(t.end);
+        if(s<=nowMin && nowMin<e){ current=t; break; }
+        if(s>nowMin && (!next || s<timeToMin(next.start))) next=t;
+      }
+      return {current, next};
+    }
+
+    // ===== State & Elements =====
+    let DATA = load();
+    let CHOSEN_DAY_KEY = null;
+    let savedScrollY = 0;
+    
+    // START: new varialbles for time picker
+    // --- Custom Time Picker ---
+    let activeTimePickerTarget = null;
+    const timePickerOverlay = document.getElementById('timePickerOverlay');
+    const hourPicker = document.getElementById('hourPicker');
+    const minutePicker = document.getElementById('minutePicker');
+    const ampmPicker = document.getElementById('ampmPicker');
+    // END: new variables for time picker
+
+    const todayLabel = document.getElementById('todayLabel');
+    const nowTitle = document.getElementById('nowTitle');
+    const nowTime = document.getElementById('nowTime');
+    const nowHint = document.getElementById('nowHint');
+    const todayList = document.getElementById('todayList');
+    const todayEmpty = document.getElementById('todayEmpty');
+    const completedList = document.getElementById('completedList');
+    const completedEmpty = document.getElementById('completedEmpty');
+    const missedList = document.getElementById('missedList');
+    const missedCount = document.getElementById('missedCount');
+    const missedEmpty = document.getElementById('missedEmpty');
+
+    const fab = document.getElementById('fab');
+    const sheet = document.getElementById('sheet');
+    const sheetBackdrop = document.getElementById('sheetBackdrop');
+    const closeSheet = document.getElementById('closeSheet');
+    const chooseToday = document.getElementById('chooseToday');
+    const chooseTomorrow = document.getElementById('chooseTomorrow');
+    const taskForm = document.getElementById('taskForm');
+    const chosenDayLabel = document.getElementById('chosenDayLabel');
+    const titleInput = document.getElementById('title');
+    const startInput = document.getElementById('start');
+    const endInput = document.getElementById('end');
+    const resetFormBtn = document.getElementById('resetForm');
+
+    const viewTomorrowBtn = document.getElementById('viewTomorrowBtn');
+    const manageBtn = document.getElementById('manageBtn');
+    const menu = document.getElementById('menu');
+    const menuClearCompleted = document.getElementById('menuClearCompleted');
+    const menuClearMissed = document.getElementById('menuClearMissed');
+    const menuViewTomorrow = document.getElementById('menuViewTomorrow');
+
+    // Tomorrow overlay elements (same structure)
+    const tomorrowOverlay = document.getElementById('tomorrowOverlay');
+    const closeTomorrow = document.getElementById('closeTomorrow');
+    const tomorrowLabel = document.getElementById('tomorrowLabel');
+    const tomNowTitle = document.getElementById('tomNowTitle');
+    const tomNowTime = document.getElementById('tomNowTime');
+    const tomNowHint = document.getElementById('tomNowHint');
+    const tomorrowList = document.getElementById('tomorrowList');
+    const tomorrowEmpty = document.getElementById('tomorrowEmpty');
+    const tomorrowCompleted = document.getElementById('tomorrowCompleted');
+    const tomorrowCompletedEmpty = document.getElementById('tomorrowCompletedEmpty');
+    const tomorrowMissed = document.getElementById('tomorrowMissed');
+    const tomorrowMissedCount = document.getElementById('tomorrowMissedCount');
+    const tomorrowMissedEmpty = document.getElementById('tomorrowMissedEmpty');
+    const clearTomorrowCompleted = document.getElementById('clearTomorrowCompleted');
+    const clearTomorrowMissed = document.getElementById('clearTomorrowMissed');
+    
+    
+    // ===== Rendering =====
+    function render(){
+      const tKey = toKey(todayDate());
+      const nKey = toKey(tomorrowDate());
+      if(!DATA[tKey]) DATA[tKey]=[];
+      if(!DATA[nKey]) DATA[nKey]=[];
+
+      const now = new Date();
+      const nowMin = now.getHours()*60 + now.getMinutes();
+      todayLabel.textContent = now.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+
+      const tPart = partition(getDayData(DATA,tKey), nowMin);
+      const {current, next} = currentOrNext([...tPart.upcoming], nowMin);
+      if(current){
+        nowTitle.textContent = current.title;
+        nowTime.textContent = `${to12Hour(current.start)} – ${to12Hour(current.end)}`;
+        nowHint.textContent = "Focus on this task. You got this.";
+      }else if(next){
+        nowTitle.textContent = "Up next: " + next.title;
+        nowTime.textContent = `${to12Hour(next.start)} – ${to12Hour(next.end)}`;
+        nowHint.textContent = "No active task. Prepare for the next one.";
+      }else{
+        nowTitle.textContent = "Nothing right now";
+        nowTime.textContent = "—";
+        nowHint.textContent = "You’re free. Rest or plan tomorrow.";
+      }
+
+      fillList(todayList, tPart.upcoming, tKey);
+      todayEmpty.hidden = tPart.upcoming.length!==0;
+
+      fillList(completedList, tPart.completed, tKey, {completed:true});
+      completedEmpty.hidden = tPart.completed.length!==0;
+
+      fillList(missedList, tPart.missed, tKey);
+      missedCount.textContent = tPart.missed.length;
+      missedEmpty.hidden = tPart.missed.length!==0;
+
+      // Tomorrow UI (same layout)
+      tomorrowLabel.textContent = tomorrowDate().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+      const nPart = partition(getDayData(DATA,nKey), /*0 so only archived shows as missed*/ 0);
+      const first = nPart.upcoming[0];
+      if(first){
+        tomNowTitle.textContent = first.title;
+        tomNowTime.textContent = `${to12Hour(first.start)} – ${to12Hour(first.end)}`;
+        tomNowHint.textContent = "Get a head start by prepping for this.";
+      }else{
+        tomNowTitle.textContent = "No tasks yet";
+        tomNowTime.textContent = "—";
+        tomNowHint.textContent = "Add a few tasks for a smooth day.";
+      }
+      fillList(tomorrowList, nPart.upcoming, nKey);
+      tomorrowEmpty.hidden = nPart.upcoming.length!==0;
+      fillList(tomorrowCompleted, nPart.completed, nKey, {completed:true});
+      tomorrowCompletedEmpty.hidden = nPart.completed.length!==0;
+      fillList(tomorrowMissed, nPart.missed, nKey);
+      tomorrowMissedCount.textContent = nPart.missed.length;
+      tomorrowMissedEmpty.hidden = nPart.missed.length!==0;
+
+      // highlight last moved
+      if(lastHighlight){ highlightRow(lastHighlight); lastHighlight=null; }
+    }
+    
+    const sunSVG = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="currentColor">
+        <circle cx="15" cy="15" r="6" fill="currentColor"/>
+        <g stroke="currentColor" stroke-width="2">
+          <line x1="15" y1="1" x2="15" y2="3"/>
+          <line x1="15" y1="27" x2="15" y2="29"/>
+          <line x1="29" y1="15" x2="27" y2="15"/>
+          <line x1="3" y1="15" x2="1" y2="15"/>
+          <line x1="25.607" y1="4.393" x2="24.192" y2="5.808"/>
+          <line x1="5.808" y1="24.192" x2="4.393" y2="25.607"/>
+          <line x1="25.607" y1="25.607" x2="24.192" y2="24.192"/>
+          <line x1="5.808" y1="5.808" x2="4.393" y2="4.393"/>
+        </g>
+      </svg>
+    `;
+    
+    const moonSVG = `
+      <svg width="23" height="21" viewBox="0 0 30 30">
+      <path fill="currentColor" d="M 23, 5 A 12 12 0 1 0 23, 25 A 12 12 0 0 1 23, 5"/>
+      </svg>
+    `;
+    
+    const themeToggle = document.getElementById('themeToggle');
+    
+    // load saved theme
+    if (localStorage.getItem("theme") === "dark") {
+      document.body.classList.add("dark");
+      themeToggle.innerHTML = sunSVG;
+    } else {
+      themeToggle.innerHTML = moonSVG;
+    }
+    
+    themeToggle.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      const isDark = document.body.classList.contains("dark");
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+      themeToggle.innerHTML = isDark ? sunSVG : moonSVG;
+    });
+
+
+    function fillList(ul, items, dayKey, opts={}){
+      ul.innerHTML = '';
+      if(items.length===0) return;
+      for(const t of items){
+        const li = rowForTask(t, dayKey, opts);
+        ul.appendChild(li);
+      }
+    }
+
+    function rowForTask(t, dayKey, {completed=false}={}){
+      const li = document.createElement('li');
+      li.className = 'row';
+
+      const actions = document.createElement('div');
+      actions.className='row-actions';
+      const archBtn = document.createElement('button');
+      archBtn.className='btn-archive';
+      archBtn.textContent = 'Archive';
+      archBtn.title = 'Move to Missed';
+      archBtn.addEventListener('click', (e)=>{ e.stopPropagation(); archiveTask(dayKey, t.id); });
+      const delBtn = document.createElement('button');
+      delBtn.className='btn-delete';
+      delBtn.textContent = 'Delete';
+      delBtn.title = 'Delete task';
+      delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteTask(dayKey, t.id); });
+      actions.append(archBtn, delBtn);
+
+      const swipe = document.createElement('div');
+      swipe.className='swipe';
+
+      // NEW
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!t.done;
+      
+      const cbWrap = document.createElement('label');   // invisible big hit area
+      cbWrap.className = 'cb-hit';
+      cbWrap.appendChild(cb);
+      
+      // Keeping the same change handler
+      cb.addEventListener('change', ()=> setDone(dayKey, t.id, cb.checked));
+
+      const content = document.createElement('div');
+      content.className='task';
+      const left = document.createElement('div');
+      left.className='meta';
+      const ttl = document.createElement('b'); ttl.textContent = t.title;
+      const tm = document.createElement('small'); tm.textContent = `${to12Hour(t.start)} – ${to12Hour(t.end)}`;
+      left.append(ttl, tm);
+      const right = document.createElement('div'); right.className='time ghost'; right.textContent='⋯';
+      content.append(left, right);
+
+      if(completed){ ttl.classList.add('strike'); content.classList.add('strike'); }
+
+      swipe.append(cbWrap, content);
+      li.append(actions, swipe);
+
+      enableSwipe(li, swipe); // iOS-like with snap
+      return li;
+    }
+    
+    
+    // ===== Convert To 12 Hour =====
+    function to12Hour(timeStr){
+      let [h, m] = timeStr.split(":").map(Number);
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      if(h === 0) h = 12;
+      return `${h}:${m.toString().padStart(2,"0")} ${ampm}`;
+    }
+
+
+    // ===== Swipe (snap-to-open/close) =====
+    function enableSwipe(row, swipeEl){
+      let startX=0, startTx=0, dragging=false, pointerId=null;
+      const maxReveal = getCssVar('--swipe-width') || 144;
+      const clamp = (v,min,max)=>Math.min(max,Math.max(min,v));
+      const getTx = () => {
+        const tr = getComputedStyle(swipeEl).transform;
+        if(tr && tr!=='none'){ const m = new DOMMatrixReadOnly(tr); return m.m41; }
+        return 0;
+      };
+
+      function onDown(e){
+        if(e.pointerType==='mouse' && e.buttons!==1) return;
+        dragging=true; pointerId=e.pointerId; swipeEl.setPointerCapture(pointerId);
+        startX = e.clientX; startTx = getTx();
+        swipeEl.style.transition='none';
+      }
+      function onMove(e){
+        if(!dragging) return;
+        const dx = e.clientX - startX;
+        const nx = clamp(startTx + dx, -maxReveal, 0);
+        swipeEl.style.transform = `translateX(${nx}px)`;
+      }
+      function snap(finalOpen){
+        swipeEl.style.transition = `transform var(--anim-mid) cubic-bezier(.2,.8,.2,1)`;
+        if(finalOpen){ swipeEl.classList.add('revealed'); swipeEl.style.transform = `translateX(${-maxReveal}px)`; }
+        else{ swipeEl.classList.remove('revealed'); swipeEl.style.transform = `translateX(0px)`; }
+      }
+      function onUp(){
+        if(!dragging) return;
+        dragging=false;
+        swipeEl.releasePointerCapture(pointerId);
+        const tx = getTx();
+        const threshold = -maxReveal*0.3; // 30% to open
+        snap(tx < threshold);
+      }
+
+      swipeEl.addEventListener('pointerdown', onDown);
+      swipeEl.addEventListener('pointermove', onMove);
+      swipeEl.addEventListener('pointerup', onUp);
+      swipeEl.addEventListener('pointercancel', onUp);
+      // tap outside to close if revealed
+      row.addEventListener('click', (e)=>{
+        if(swipeEl.classList.contains('revealed') && !e.target.closest('.row-actions')){
+          snap(false);
+        }
+      });
+    }
+
+    // ===== Mutations (with highlight) =====
+    function setDone(dayKey, id, done){
+      const arr = DATA[dayKey]||[]; const t = arr.find(x=>x.id===id); if(!t) return;
+      t.done = !!done; if(done) t.archived=false;
+      sortByStart(arr); save(DATA);
+      lastHighlight = { dayKey, id };
+      render();
+    }
+    function archiveTask(dayKey, id){
+      const arr = DATA[dayKey]||[]; const t = arr.find(x=>x.id===id); if(!t) return;
+      t.archived = true; t.done = false; save(DATA);
+      lastHighlight = { dayKey, id };
+      render();
+    }
+    function deleteTask(dayKey, id){
+      DATA[dayKey] = (DATA[dayKey]||[]).filter(x=>x.id!==id);
+      save(DATA); render();
+    }
+    function clearWhere(dayKey, predicate){
+      DATA[dayKey] = (DATA[dayKey]||[]).filter(t=>!predicate(t));
+      save(DATA); render();
+    }
+    function highlightRow(ref){
+      // try to find the row in all lists and flash it
+      const lists = [todayList, completedList, missedList, tomorrowList, tomorrowCompleted, tomorrowMissed];
+      for(const ul of lists){
+        const items = [...ul.querySelectorAll('.row')];
+        for(const li of items){
+          const label = li.querySelector('.meta b');
+          const time = li.querySelector('.meta small');
+          if(!label || !time) continue;
+          // best-effort flash based on text match
+          // (IDs are not in DOM; this is lightweight and good enough)
+        }
+      }
+      // Subtle flash on containers instead (cheap & consistent)
+      [completedList, missedList, todayList, tomorrowList].forEach(el=>{
+        if(el && el.childElementCount) { el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'), 260); }
+      });
+    }
+
+    // ===== Add Sheet =====
+    function openSheet() {
+      // 1. Save scroll position and apply freezing styles immediately.
+      // This causes the browser reflow.
+      savedScrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${savedScrollY}px`;
+      document.body.style.width = '100%';
+
+      // 2. Defer the UI update that triggers the animation.
+      // This gives the browser a moment to process the reflow before animating.
+      setTimeout(() => {
+        sheet.classList.add('open'); // This now smoothly triggers the slide-up animation
+        sheetBackdrop.style.display = 'block';
+        resetForm();
+      }, 0); // A timeout of 0ms is enough to push it to the next event loop tick.
+    }
+    
+    function closeSheetFn() {
+      // 1. Removes the freezing styles from the body
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+
+      // 2. Instantly restore the saved scroll position
+      window.scrollTo(0, savedScrollY);
+
+      // 3. Close the sheet
+      sheet.classList.remove('open');
+      sheetBackdrop.style.display = 'none';
+    }
+    
+    function chooseDay(key,label){
+      CHOSEN_DAY_KEY = key;
+      taskForm.classList.remove('hidden');
+      chosenDayLabel.textContent = `Adding to ${label}`;
+      const now = new Date(); // default next clean half-hour
+      const nextHalf = now.getMinutes()<=30 ? 30 : 60;
+      const startM = now.getHours()*60 + (nextHalf===60?0:30);
+      startInput.value = minToTime(startM);
+      endInput.value = minToTime(startM+60);
+      titleInput.focus();
+    }
+    function resetForm(){
+      CHOSEN_DAY_KEY = null;
+      taskForm.classList.add('hidden');
+      chosenDayLabel.textContent='Choose a day:';
+      taskForm.reset();
+      
+      // reset the time displays
+      document.querySelector('.custom-time-input[data-target="start"]').innerHTML = 'Start Time';
+      document.querySelector('.custom-time-input[data-target="end"]').innerHTML = 'End Time';
+    }
+
+    // ===== Tomorrow overlay =====
+    function openTomorrow(){
+      tomorrowOverlay.classList.add('show');
+      tomorrowOverlay.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';  // prevent page behind from scrolling
+    }
+    function closeTomorrowFn(){
+      tomorrowOverlay.classList.remove('show');
+      tomorrowOverlay.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';        // restore
+    }
+
+    // ===== Menu (3-dots) =====
+    function toggleMenu(show){
+      if(show===undefined) show = !menu.classList.contains('show');
+      if(show){ menu.classList.add('show'); }
+      else{ menu.classList.remove('show'); }
+    }
+    document.addEventListener('click', (e)=>{
+      if(menu.classList.contains('show') && !e.target.closest('#manageBtn') && !e.target.closest('#menu')){
+        toggleMenu(false);
+      }
+    });
+
+    // ===== Events =====
+    fab.addEventListener('click', openSheet);
+    sheetBackdrop.addEventListener('click', closeSheetFn);
+    closeSheet.addEventListener('click', closeSheetFn);
+    chooseToday.addEventListener('click', ()=> chooseDay(toKey(todayDate()), 'Today'));
+    chooseTomorrow.addEventListener('click', ()=> chooseDay(toKey(tomorrowDate()), 'Tomorrow'));
+    resetFormBtn.addEventListener('click', ()=> taskForm.reset());
+    taskForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      if(!CHOSEN_DAY_KEY){ alert('Choose Today or Tomorrow first.'); return; }
+      const title = titleInput.value.trim();
+      const start = startInput.value;
+      const end = endInput.value;
+      if(!title) return;
+      if(timeToMin(end) <= timeToMin(start)){ alert('End time must be after start time.'); return; }
+      const arr = DATA[CHOSEN_DAY_KEY] || (DATA[CHOSEN_DAY_KEY]=[]);
+      arr.push(task(title, start, end)); sortByStart(arr); save(DATA);
+      closeSheetFn(); render();
+    });
+
+    viewTomorrowBtn.addEventListener('click', openTomorrow);
+    closeTomorrow.addEventListener('click', closeTomorrowFn);
+
+    manageBtn.addEventListener('click', ()=> toggleMenu());
+    menuClearCompleted.addEventListener('click', ()=>{
+      const tKey = toKey(todayDate());
+      clearWhere(tKey, t=>t.done);
+      toggleMenu(false);
+    });
+    menuClearMissed.addEventListener('click', ()=>{
+      const tKey = toKey(todayDate());
+      const nowMin = new Date().getHours()*60 + new Date().getMinutes();
+      clearWhere(tKey, t=>(!t.done && (t.archived || timeToMin(t.end)<nowMin)));
+      toggleMenu(false);
+    });
+    menuViewTomorrow.addEventListener('click', ()=>{ toggleMenu(false); openTomorrow(); });
+
+    clearTomorrowCompleted.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t=>t.done));
+    clearTomorrowMissed.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t=>(!t.done && t.archived)));
+
+    // ===== Ticking / date change =====
+    function tick(){ render(); }
+    setInterval(tick, 30*1000);
+    let lastKey = toKey(todayDate());
+    setInterval(()=>{
+      const k = toKey(todayDate());
+      if(k!==lastKey){ lastKey=k; render(); }
+    }, 60*1000);
+
+    // ===== Prevent zooming (extra safety on mobile & desktop Ctrl+wheel) =====
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function (e) {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) { e.preventDefault(); }
+      lastTouchEnd = now;
+    }, {passive:false});
+    document.addEventListener('gesturestart', e => e.preventDefault()); // iOS Safari
+    document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, {passive:false});
+    
+    
+    // ===== Custom Time Picker Logic =====
+    const ITEM_HEIGHT = 48; // Must match --item-height in CSS
+    
+    // START: new populate function for infinite time scroll
+    function populateTimePickers() {
+      const NUM_SETS = 3; // A middle set with a buffer set before and after
+    
+      // Hours (1-12) - Looping
+      for (let s = 0; s < NUM_SETS; s++) {
+        for (let i = 1; i <= 12; i++) {
+          const item = document.createElement('div');
+          item.className = 'picker-item';
+          item.textContent = pad(i);
+          item.dataset.value = i;
+          hourPicker.appendChild(item);
+        }
+      }
+    
+      // Minutes (0-59) - Looping
+      for (let s = 0; s < NUM_SETS; s++) {
+        for (let i = 0; i < 60; i++) {
+          const item = document.createElement('div');
+          item.className = 'picker-item';
+          item.textContent = pad(i);
+          item.dataset.value = i;
+          minutePicker.appendChild(item);
+        }
+      }
+    
+      // AM/PM (No loop needed)
+      ['AM', 'PM'].forEach(val => {
+        const item = document.createElement('div');
+        item.className = 'picker-item';
+        item.textContent = val;
+        item.dataset.value = val;
+        ampmPicker.appendChild(item);
+      });
+    }
+    // END: Replace with this function
+    
+    function highlightCenter() {
+      [hourPicker, minutePicker, ampmPicker].forEach(picker => {
+        const pickerRect = picker.getBoundingClientRect();
+        const center = pickerRect.top + pickerRect.height / 2;
+        picker.querySelectorAll('.picker-item').forEach(item => {
+          const itemRect = item.getBoundingClientRect();
+          const itemCenter = itemRect.top + itemRect.height / 2;
+          if (Math.abs(center - itemCenter) < ITEM_HEIGHT / 2) {
+            item.style.opacity = '1';
+            item.style.color = 'var(--fg)';
+          } else {
+            item.style.opacity = '0.4';
+            item.style.color = 'var(--muted)';
+          }
+        });
+      });
+    }
+    
+
+    function getPickerValues() {
+      // Use modulo to get the correct value from the looped list
+      const hour = (Math.round(hourPicker.scrollTop / ITEM_HEIGHT) % 12) + 1;
+      const minute = Math.round(minutePicker.scrollTop / ITEM_HEIGHT) % 60;
+      const ampm = Math.round(ampmPicker.scrollTop / ITEM_HEIGHT) === 0 ? 'AM' : 'PM';
+      return { hour, minute, ampm };
+    }
+    
+    function updateTimeOnTarget() {
+      if (!activeTimePickerTarget) return;
+      const { hour, minute, ampm } = getPickerValues();
+      
+      // Updating the display div's innerHTML to show the formatted time
+      const displayDiv = document.querySelector(`.custom-time-input[data-target="${activeTimePickerTarget}"]`);
+      displayDiv.innerHTML = `<span class="hour">${pad(hour)}</span>:<span class="minute">${pad(minute)}</span> <span class="ampm">${ampm}</span>`;
+    
+      // Converting to 24-hour for the hidden input (this logic remains the same)
+      let hour24 = hour;
+      if (ampm === 'PM' && hour !== 12) hour24 += 12;
+      if (ampm === 'AM' && hour === 12) hour24 = 0; // Midnight case
+      
+      const hiddenInput = document.getElementById(activeTimePickerTarget);
+      hiddenInput.value = `${pad(hour24)}:${pad(minute)}`;
+    }
+    
+
+    let scrollEndTimer;
+    
+    // START: this is stable and correct
+    function handleInfiniteScroll(picker) {
+        // If a reset is already queued, do nothing to prevent race conditions.
+        if (picker.isResetting) return;
+    
+        const isHourPicker = picker.id === 'hourPicker';
+        const itemsPerSet = isHourPicker ? 12 : 60;
+        const singleSetHeight = itemsPerSet * ITEM_HEIGHT;
+    
+        let scrollAdjustment = 0;
+    
+        // This is the stable "<" condition that works best.
+        if (picker.scrollTop < singleSetHeight) {
+            scrollAdjustment = singleSetHeight;
+        } 
+        // The downward scroll logic is fine.
+        else if (picker.scrollTop >= singleSetHeight * 2) {
+            scrollAdjustment = -singleSetHeight;
+        }
+    
+        // If a jump is needed...
+        if (scrollAdjustment !== 0) {
+            picker.isResetting = true;
+            requestAnimationFrame(() => {
+                picker.scrollTop += scrollAdjustment;
+                picker.isResetting = false;
+            });
+        }
+    }
+    // END: this is final, flicker-free version (it's really not)
+    
+    [hourPicker, minutePicker, ampmPicker].forEach(picker => {
+      picker.addEventListener('scroll', () => {
+        // Handle the infinite loop for hour and minute pickers
+        if (picker.id === 'hourPicker' || picker.id === 'minutePicker') {
+          handleInfiniteScroll(picker);
+        }
+        
+        highlightCenter();
+        
+        // Using a timer to update the final value only when scrolling stops
+        clearTimeout(scrollEndTimer);
+        scrollEndTimer = setTimeout(updateTimeOnTarget, 150);
+      });
+    });
+    
+    function showTimePicker(e) {
+      document.body.style.overflow = 'hidden';
+      const trigger = e.currentTarget;
+      activeTimePickerTarget = trigger.dataset.target;
+      const hiddenInput = document.getElementById(activeTimePickerTarget);
+    
+      let [h24, m] = hiddenInput.value.split(':').map(Number);
+      let ampm = h24 >= 12 ? 'PM' : 'AM';
+      let h12 = h24 % 12;
+      if (h12 === 0) h12 = 12;
+    
+      // Scroll to the middle set of numbers for a seamless loop
+      const hourSetHeight = 12 * ITEM_HEIGHT;
+      hourPicker.scrollTop = hourSetHeight + ((h12 - 1) * ITEM_HEIGHT);
+    
+      const minuteSetHeight = 60 * ITEM_HEIGHT;
+      minutePicker.scrollTop = minuteSetHeight + (m * ITEM_HEIGHT);
+      
+      ampmPicker.scrollTop = (ampm === 'AM' ? 0 : 1) * ITEM_HEIGHT;
+      
+      highlightCenter();
+      timePickerOverlay.classList.add('show');
+    }
+    
+    function hideTimePicker() {
+      document.body.style.overflow = ''; // <-- ADD THIS LINE
+      updateTimeOnTarget();
+      timePickerOverlay.classList.remove('show');
+      activeTimePickerTarget = null;
+    }
+    
+    document.querySelectorAll('[data-role="time-picker-trigger"]').forEach(el => {
+      el.addEventListener('click', showTimePicker);
+    });
+    timePickerOverlay.addEventListener('click', e => {
+      if (e.target === timePickerOverlay) {
+        hideTimePicker();
+      }
+    });
+    
+    // Prevent background scroll via wheel or touch on the overlay itself
+    timePickerOverlay.addEventListener('wheel', e => {
+        // Allow scrolling ONLY if the mouse is over a picker column.
+        // Block scrolling on the backdrop, separators, and container padding.
+        if (!e.target.closest('.picker-column')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    timePickerOverlay.addEventListener('touchmove', e => {
+        // Allow scrolling ONLY if the touch is over a picker column.
+        if (!e.target.closest('.picker-column')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    populateTimePickers();
+    // ===== END Custom Time Picker Logic =====
+
+    // Initial paint
+    render();
+  })();
+  </script>
+</body>
+</html>
