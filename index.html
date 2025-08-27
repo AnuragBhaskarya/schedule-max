@@ -3,7 +3,7 @@
 <head>
     <!-- PWA Meta Tags for iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Schedule-Max">
     
@@ -153,7 +153,7 @@
     .icon-btn{width:39px; height:39px; display:grid; place-items:center; color: var(--blk); border:1px solid var(--fg); border-radius:999px; background:var(--wht); cursor:pointer}
 
     /* Sections */
-    main{max-width:100%; padding:14px 20px 0 20px; background-color: var(--wht); }
+    main{max-width:100%; padding:14px 20px 0 20px; background-color: var(--wht); padding-bottom: 20px;}
     .section{margin:14px 0 10px}
     .section h2{margin:0 0 8px; font-size:14px; text-transform:uppercase; letter-spacing:0.8px}
 
@@ -252,10 +252,10 @@
       border: none;
       background: var(--blk);
       color: var(--wht);
-      font-size: 28px;       /* slightly larger for good balance */
-      display: flex;         /* 👈 */
-      align-items: center;   /* 👈 */ //centering the f*cking div
-      justify-content: center; /* 👈 */
+      font-size: 28px;
+      display: flex; 
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       box-shadow: var(--shadow);
     }
@@ -447,14 +447,7 @@
       <ul class="list" id="todayList"></ul>
       <div class="empty" id="todayEmpty" style="padding: 10px 0 0 0;" >No Tasks For Today</div>
     </section>
-
-    <!-- Completed -->
-    <section class="section">
-      <h2>Completed</h2>
-      <ul class="list" id="completedList"></ul>
-      <div class="empty" id="completedEmpty" style="padding: 10px 0 0 0; background-color: var(--wht); background: var(--wht);" hidden>No completed tasks yet.</div>
-    </section>
-
+    
     <!-- Missed -->
     <section class="section">
       <details class="archive" id="missedDetails">
@@ -467,6 +460,14 @@
         <div class="empty" id="missedEmpty" style="padding: 10px; background: transparent; " hidden>No missed tasks.</div>
       </details>
     </section>
+
+    <!-- Completed -->
+    <section class="section">
+      <h2>Completed</h2>
+      <ul class="list" id="completedList"></ul>
+      <div class="empty" id="completedEmpty" style="padding: 10px 0 0 0; background-color: var(--wht); background: var(--wht);" hidden>No completed tasks yet.</div>
+    </section>
+
   </main>
 
   <!-- Floating Add Button -->
@@ -553,13 +554,7 @@
           <ul class="list" id="tomorrowList"></ul>
           <div class="empty" id="tomorrowEmpty" style="padding: 10px 0 0 0;" hidden>No tasks for tomorrow yet.</div>
         </section>
-
-        <section class="section">
-          <h2>Completed</h2>
-          <ul class="list" id="tomorrowCompleted"></ul>
-          <div class="empty" id="tomorrowCompletedEmpty" style = "padding: 10px 0 0 0;" hidden>No completed tasks.</div>
-        </section>
-
+        
         <section class="section">
           <details class="archive" id="tomorrowMissedDetails">
             <summary>
@@ -571,6 +566,13 @@
             <div class="empty" id="tomorrowMissedEmpty" style="padding: 10px; background: transparent;" hidden>No missed tasks.</div>
           </details>
         </section>
+
+        <section class="section">
+          <h2>Completed</h2>
+          <ul class="list" id="tomorrowCompleted"></ul>
+          <div class="empty" id="tomorrowCompletedEmpty" style = "padding: 10px 0 0 0;" hidden>No completed tasks.</div>
+        </section>
+
       </main>
     </div>
   </div>
@@ -588,137 +590,210 @@
 
   <script>
   (function(){
-    const STORAGE_KEY = 'scheduleMax.v2'; // bump key (new UI)
-    let lastHighlight = null; // for subtle flash after move
+    const STORAGE_KEY = 'scheduleMax.v3'; // BUMPED VERSION KEY for new data structure
+    let lastHighlight = null;
+    let dateOffset = 0; // 0 means today, 1 means tomorrow, -1 means yesterday, etc.
 
     // ===== Utilities =====
     const pad = n => String(n).padStart(2,'0');
     const toKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    const todayDate = () => new Date();
+    // REPLACE your old todayDate function with this one
+    const todayDate = () => {
+      const d = new Date();
+      d.setDate(d.getDate() + dateOffset); // Apply the offset
+      return d;
+    };
     const tomorrowDate = () => { const d = todayDate(); d.setDate(d.getDate()+1); return d; };
     const timeToMin = t => { const [h,m] = t.split(':').map(Number); return h*60 + m; };
     const minToTime = m => { m=((m%1440)+1440)%1440; const h=Math.floor(m/60), mm=m%60; return `${pad(h)}:${pad(mm)}`; };
     const getCssVar = name => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
 
     function uid(){ return Math.random().toString(36).slice(2,9); }
-    // ------------------------ WEEKLY TEMPLATES (0=Sun,1=Mon,..6=Sat) ------------------------
+
+    // ===== TEMPLATES (Permanent & Recurring Tasks) =====
     const WEEKLY_TEMPLATES = {
       1: [ // Monday
-        { title:"Wake up & water", start:"06:30", end:"06:45" },
-        { title:"Walk & sunlight", start:"07:00", end:"07:30" },
-        { title:"Study C++", start:"08:00", end:"10:00" },
-        { title:"Breakfast", start:"10:00", end:"10:30" },
-        { title:"Project: WTF v2", start:"11:00", end:"12:30" },
-        { title:"Lunch", start:"13:00", end:"13:30" },
-        { title:"OOP Notes (Unit 1)", start:"15:00", end:"16:00" },
-        { title:"Gym", start:"17:30", end:"18:30" },
-        { title:"Dinner", start:"19:15", end:"20:00" },
-        { title:"DSA practice", start:"20:15", end:"22:00" },
+        { title:"Get up", start:"00:00", end:"09:00" },
+        { title:"Breakfast", start:"09:20", end:"09:30" },
+        { title:"Soak chickpeas", start:"09:30", end:"09:40" },
+        { title:"College", start:"10:00", end:"13:20" },
+        { title:"Lunch", start:"13:20", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Gym", start:"16:00", end:"18:30" },
+        { title:"Boil eggs / Eat chickpeas", start:"18:30", end:"19:00" },
+        { title:"Bath / Clothes", start:"19:00", end:"20:00" },
+        { title:"Study", start:"20:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
       2: [ // Tuesday
-        { title:"Wake up & water", start:"06:30", end:"06:45" },
-        { title:"Java basics", start:"07:30", end:"09:30" },
-        { title:"Break", start:"09:30", end:"10:00" },
-        { title:"Cloudflare Pages deploy", start:"10:30", end:"12:00" },
-        { title:"Lunch", start:"13:00", end:"13:30" },
-        { title:"Android dev: basics", start:"14:00", end:"16:00" },
-        { title:"Project time", start:"16:30", end:"18:00" },
-        { title:"Evening study (algos)", start:"20:00", end:"22:00" },
+        { title:"Get up", start:"00:00", end:"09:00" },
+        { title:"Breakfast", start:"09:20", end:"09:30" },
+        { title:"Soak chickpeas", start:"09:30", end:"09:40" },
+        { title:"College", start:"10:00", end:"13:20" },
+        { title:"Lunch", start:"13:20", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Gym", start:"16:00", end:"18:30" },
+        { title:"Boil eggs / Eat chickpeas", start:"18:30", end:"19:00" },
+        { title:"Bath / Clothes", start:"19:00", end:"20:00" },
+        { title:"Study", start:"20:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
       3: [ // Wednesday
-        { title:"Wake up & water", start:"06:30", end:"06:45" },
-        { title:"Walk & sunlight", start:"07:00", end:"07:30" },
-        { title:"Web dev (HTML/CSS)", start:"08:00", end:"10:00" },
-        { title:"Breakfast", start:"10:00", end:"10:30" },
-        { title:"Portfolio & README", start:"11:00", end:"12:30" },
-        { title:"Lunch", start:"13:00", end:"13:30" },
-        { title:"Small project (micro)", start:"15:00", end:"17:00" },
-        { title:"Gym", start:"17:30", end:"18:30" },
+        { title:"Get up", start:"00:00", end:"09:00" },
+        { title:"Breakfast", start:"09:20", end:"09:30" },
+        { title:"Soak chickpeas", start:"09:30", end:"09:40" },
+        { title:"College", start:"10:00", end:"13:20" },
+        { title:"Lunch", start:"13:20", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Gym", start:"16:00", end:"18:30" },
+        { title:"Boil eggs / Eat chickpeas", start:"18:30", end:"19:00" },
+        { title:"Bath / Clothes", start:"19:00", end:"20:00" },
+        { title:"Study", start:"20:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
       4: [ // Thursday
-        { title:"Wake up & water", start:"06:30", end:"06:45" },
-        { title:"DSA practice", start:"07:30", end:"09:30" },
-        { title:"Break", start:"09:30", end:"10:00" },
-        { title:"JavaScript deep-dive", start:"10:30", end:"12:30" },
-        { title:"Lunch", start:"13:00", end:"13:30" },
-        { title:"Cloud infra / Deploys", start:"15:00", end:"17:00" },
-        { title:"Side project", start:"18:00", end:"20:00" },
+        { title:"Get up", start:"00:00", end:"09:00" },
+        { title:"Breakfast", start:"09:20", end:"09:30" },
+        { title:"Soak chickpeas", start:"09:30", end:"09:40" },
+        { title:"College", start:"10:00", end:"13:20" },
+        { title:"Lunch", start:"13:20", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Gym", start:"16:00", end:"18:30" },
+        { title:"Boil eggs / Eat chickpeas", start:"18:30", end:"19:00" },
+        { title:"Bath / Clothes", start:"19:00", end:"20:00" },
+        { title:"Study", start:"20:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
       5: [ // Friday
-        { title:"Wake up & water", start:"06:30", end:"06:45" },
-        { title:"Study C++", start:"07:30", end:"09:30" },
-        { title:"Break", start:"09:30", end:"10:00" },
-        { title:"System design reading", start:"10:30", end:"12:00" },
-        { title:"Lunch", start:"13:00", end:"13:30" },
-        { title:"Project focus (deployable)", start:"15:00", end:"18:00" },
-        { title:"Code review / cleanups", start:"20:00", end:"21:30" },
+        { title:"Get up", start:"00:00", end:"09:00" },
+        { title:"Breakfast", start:"09:20", end:"09:30" },
+        { title:"Soak chickpeas", start:"09:30", end:"09:40" },
+        { title:"College", start:"10:00", end:"13:20" },
+        { title:"Lunch", start:"13:20", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Gym", start:"16:00", end:"18:30" },
+        { title:"Boil eggs / Eat chickpeas", start:"18:30", end:"19:00" },
+        { title:"Bath / Clothes", start:"19:00", end:"20:00" },
+        { title:"Study", start:"20:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
       6: [ // Saturday
-        { title:"Wake up & water", start:"07:30", end:"07:45" },
-        { title:"Content creation (reels/posts)", start:"08:30", end:"10:30" },
-        { title:"Break", start:"10:30", end:"11:00" },
-        { title:"Learning new tech (short course)", start:"11:30", end:"13:00" },
-        { title:"Project marathon", start:"14:00", end:"18:00" },
+        { title:"Get up", start:"00:00", end:"09:00" },
+        { title:"Breakfast", start:"09:20", end:"09:30" },
+        { title:"Soak chickpeas", start:"09:30", end:"09:40" },
+        { title:"College", start:"10:00", end:"13:20" },
+        { title:"Lunch", start:"13:20", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Gym", start:"16:00", end:"18:30" },
+        { title:"Boil eggs / Eat chickpeas", start:"18:30", end:"19:00" },
+        { title:"Bath / Clothes", start:"19:00", end:"20:00" },
+        { title:"Study", start:"20:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
       0: [ // Sunday
-        { title:"Sleep in / Rest", start:"08:00", end:"09:30" },
-        { title:"Plan next week", start:"10:00", end:"11:00" },
-        { title:"Light learning / reading", start:"11:30", end:"13:00" },
-        { title:"Personal projects / hobbies", start:"15:00", end:"18:00" },
-        { title:"Relax & ok", start:"20:00", end:"22:00" },
+        { title:"Get up", start:"00:00", end:"10:00" },
+        { title:"Breakfast", start:"10:30", end:"11:00" },
+        { title:"Cleaning / Bath / Clothes", start:"11:00", end:"13:00" },
+        { title:"Lunch", start:"13:00", end:"14:00" },
+        { title:"Reel upload", start:"14:00", end:"16:00" },
+        { title:"Mindset grind", start:"16:00", end:"18:00" },
+        { title:"Study", start:"18:00", end:"22:00" },
+        { title:"Dinner", start:"22:00", end:"22:30" },
+        { title:"Study", start:"22:30", end:"23:59" },
       ],
     };
-    
-    // Helper: copy template tasks into DATA for a given dateKey (gives each task a new id)
-    function applyTemplateToDate(DATA_obj, dateKey, weekdayIndex){
-      const tpl = WEEKLY_TEMPLATES[weekdayIndex] || [];
-      DATA_obj[dateKey] = tpl.map(t => task(t.title, t.start, t.end));
-    }
-    
-    // ------------------------ new load() that seeds a whole week ------------------------
+
+    // ===== Core Data Logic (MODIFIED) =====
+
     function load(){
       try{
         const raw = localStorage.getItem(STORAGE_KEY);
-        if(raw){
-          // existing saved map (dateKey -> task array)
-          return JSON.parse(raw);
-        }
-      }catch(e){
-        console.warn('load error', e);
-      }
+        if(raw) return JSON.parse(raw);
+      }catch(e){ console.warn('load error', e); }
+      return {}; // Start with a clean slate, no seeding needed.
+    }
     
-      // no saved data -> build initial week from WEEKLY_TEMPLATES
-      const data = {};
-      const today = todayDate();
-    
-      // seed next 7 days (today + next 6)
-      for(let i = 0; i < 7; i++){
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
-        const key = toKey(d);
-        const weekday = d.getDay(); // 0 = Sunday, 1 = Monday ...
-        applyTemplateToDate(data, key, weekday);
-      }
-    
-      save(data);
-      return data;
+    function save(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+    // MODIFIED: Helper function to create a unique ID for template tasks
+    function getTemplateId(task) {
+      return `${task.title.replace(/\s+/g, '-')}-${task.start}`;
     }
 
-    function save(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-    function task(title,start,end){ return { id: uid(), title, start, end, done:false, archived:false }; }
-    function getDayData(data, key){ return (data[key]||[]).slice(); }
+    // MODIFIED: Task factories now distinguish between types
+    function customTask(title, start, end) {
+      return { id: uid(), title, start, end, done: false, type: 'custom' };
+    }
+
+    function taskFromTemplate(templateTask) {
+      return {
+        id: uid(), // A temporary ID for the DOM, not for storage
+        templateId: getTemplateId(templateTask), // The stable ID for storage
+        title: templateTask.title,
+        start: templateTask.start,
+        end: templateTask.end,
+        done: false,
+        type: 'template'
+      };
+    }
+    
+    // Add this function somewhere in your script
+    function timeTravel(days) {
+      dateOffset = days;
+      console.log(`Time traveling... New 'today' is ${toKey(todayDate())}`);
+      render(); // This is the key: force the UI to update
+    }
+    // Expose it to the browser console for testing
+    window.timeTravel = timeTravel;
+
+    // NEW: The core function to dynamically generate a day's task list
+    function getDayTasks(dayKey) {
+      const date = new Date(dayKey.replace(/-/g, '/')); // Make it timezone-safe
+      const weekday = date.getDay();
+      
+      const baseTemplate = WEEKLY_TEMPLATES[weekday] || [];
+      const dayData = DATA[dayKey] || { mods: {}, added: [] };
+      
+      // 1. Process template tasks, applying any modifications
+      const templateTasks = baseTemplate.map(tpl => {
+        const task = taskFromTemplate(tpl);
+        const mod = dayData.mods && dayData.mods[task.templateId];
+        
+        if (mod) {
+          if (mod.deleted) return null; // Filter this task out
+          task.done = mod.done || false;
+        }
+        return task;
+      }).filter(Boolean); // Remove nulls (deleted tasks)
+
+      // 2. Get user-added custom tasks
+      const customTasks = (dayData.added || []).map(t => ({...t})); // Return copies
+
+      // 3. Combine and sort
+      const allTasks = [...templateTasks, ...customTasks];
+      return sortByStart(allTasks);
+    }
+    
     function sortByStart(arr){ return arr.sort((a,b)=> timeToMin(a.start)-timeToMin(b.start) || a.title.localeCompare(b.title)); }
+    
     function partition(dataArr, nowMin){
       const upcoming=[], completed=[], missed=[];
       for(const t of dataArr){
         const over = nowMin > timeToMin(t.end);
         if(t.done) completed.push(t);
-        else if(t.archived || over) missed.push(t);
+        else if(t.archived || over) missed.push(t); // 'archived' is kept for missed logic
         else upcoming.push(t);
       }
       sortByStart(upcoming); sortByStart(completed); sortByStart(missed);
       return {upcoming, completed, missed};
     }
+    
     function currentOrNext(list, nowMin){
       let current=null, next=null;
       for(const t of list){
@@ -734,14 +809,12 @@
     let CHOSEN_DAY_KEY = null;
     let savedScrollY = 0;
     
-    // START: new varialbles for time picker
     // --- Custom Time Picker ---
     let activeTimePickerTarget = null;
     const timePickerOverlay = document.getElementById('timePickerOverlay');
     const hourPicker = document.getElementById('hourPicker');
     const minutePicker = document.getElementById('minutePicker');
     const ampmPicker = document.getElementById('ampmPicker');
-    // END: new variables for time picker
 
     const todayLabel = document.getElementById('todayLabel');
     const nowTitle = document.getElementById('nowTitle');
@@ -754,7 +827,6 @@
     const missedList = document.getElementById('missedList');
     const missedCount = document.getElementById('missedCount');
     const missedEmpty = document.getElementById('missedEmpty');
-
     const fab = document.getElementById('fab');
     const sheet = document.getElementById('sheet');
     const sheetBackdrop = document.getElementById('sheetBackdrop');
@@ -767,15 +839,12 @@
     const startInput = document.getElementById('start');
     const endInput = document.getElementById('end');
     const resetFormBtn = document.getElementById('resetForm');
-
     const viewTomorrowBtn = document.getElementById('viewTomorrowBtn');
     const manageBtn = document.getElementById('manageBtn');
     const menu = document.getElementById('menu');
     const menuClearCompleted = document.getElementById('menuClearCompleted');
     const menuClearMissed = document.getElementById('menuClearMissed');
     const menuViewTomorrow = document.getElementById('menuViewTomorrow');
-
-    // Tomorrow overlay elements (same structure)
     const tomorrowOverlay = document.getElementById('tomorrowOverlay');
     const closeTomorrow = document.getElementById('closeTomorrow');
     const tomorrowLabel = document.getElementById('tomorrowLabel');
@@ -797,14 +866,15 @@
     function render(){
       const tKey = toKey(todayDate());
       const nKey = toKey(tomorrowDate());
-      if(!DATA[tKey]) DATA[tKey]=[];
-      if(!DATA[nKey]) DATA[nKey]=[];
 
       const now = new Date();
       const nowMin = now.getHours()*60 + now.getMinutes();
       todayLabel.textContent = now.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+      
+      // MODIFIED: Use the new dynamic task generator
+      const allTodayTasks = getDayTasks(tKey);
+      const tPart = partition(allTodayTasks, nowMin);
 
-      const tPart = partition(getDayData(DATA,tKey), nowMin);
       const {current, next} = currentOrNext([...tPart.upcoming], nowMin);
       if(current){
         nowTitle.textContent = current.title;
@@ -830,9 +900,13 @@
       missedCount.textContent = tPart.missed.length;
       missedEmpty.hidden = tPart.missed.length!==0;
 
-      // Tomorrow UI (same layout)
+      // Tomorrow UI
       tomorrowLabel.textContent = tomorrowDate().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
-      const nPart = partition(getDayData(DATA,nKey), /*0 so only archived shows as missed*/ 0);
+      
+      // MODIFIED: Use the new dynamic task generator for tomorrow
+      const allTomorrowTasks = getDayTasks(nKey);
+      const nPart = partition(allTomorrowTasks, 0); // 0 so only done/archived shows
+      
       const first = nPart.upcoming[0];
       if(first){
         tomNowTitle.textContent = first.title;
@@ -851,49 +925,14 @@
       tomorrowMissedCount.textContent = nPart.missed.length;
       tomorrowMissedEmpty.hidden = nPart.missed.length!==0;
 
-      // highlight last moved
       if(lastHighlight){ highlightRow(lastHighlight); lastHighlight=null; }
     }
     
-    const sunSVG = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="currentColor">
-        <circle cx="15" cy="15" r="6" fill="currentColor"/>
-        <g stroke="currentColor" stroke-width="2">
-          <line x1="15" y1="1" x2="15" y2="3"/>
-          <line x1="15" y1="27" x2="15" y2="29"/>
-          <line x1="29" y1="15" x2="27" y2="15"/>
-          <line x1="3" y1="15" x2="1" y2="15"/>
-          <line x1="25.607" y1="4.393" x2="24.192" y2="5.808"/>
-          <line x1="5.808" y1="24.192" x2="4.393" y2="25.607"/>
-          <line x1="25.607" y1="25.607" x2="24.192" y2="24.192"/>
-          <line x1="5.808" y1="5.808" x2="4.393" y2="4.393"/>
-        </g>
-      </svg>
-    `;
-    
-    const moonSVG = `
-      <svg width="23" height="21" viewBox="0 0 30 30">
-      <path fill="currentColor" d="M 23, 5 A 12 12 0 1 0 23, 25 A 12 12 0 0 1 23, 5"/>
-      </svg>
-    `;
-    
+    const sunSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="currentColor"><circle cx="15" cy="15" r="6" fill="currentColor"/><g stroke="currentColor" stroke-width="2"><line x1="15" y1="1" x2="15" y2="3"/><line x1="15" y1="27" x2="15" y2="29"/><line x1="29" y1="15" x2="27" y2="15"/><line x1="3" y1="15" x2="1" y2="15"/><line x1="25.607" y1="4.393" x2="24.192" y2="5.808"/><line x1="5.808" y1="24.192" x2="4.393" y2="25.607"/><line x1="25.607" y1="25.607" x2="24.192" y2="24.192"/><line x1="5.808" y1="5.808" x2="4.393" y2="4.393"/></g></svg>`;
+    const moonSVG = `<svg width="23" height="21" viewBox="0 0 30 30"><path fill="currentColor" d="M 23, 5 A 12 12 0 1 0 23, 25 A 12 12 0 0 1 23, 5"/></svg>`;
     const themeToggle = document.getElementById('themeToggle');
-    
-    // load saved theme
-    if (localStorage.getItem("theme") === "dark") {
-      document.body.classList.add("dark");
-      themeToggle.innerHTML = sunSVG;
-    } else {
-      themeToggle.innerHTML = moonSVG;
-    }
-    
-    themeToggle.addEventListener("click", () => {
-      document.body.classList.toggle("dark");
-      const isDark = document.body.classList.contains("dark");
-      localStorage.setItem("theme", isDark ? "dark" : "light");
-      themeToggle.innerHTML = isDark ? sunSVG : moonSVG;
-    });
-
+    if (localStorage.getItem("theme") === "dark") { document.body.classList.add("dark"); themeToggle.innerHTML = sunSVG; } else { themeToggle.innerHTML = moonSVG; }
+    themeToggle.addEventListener("click", () => { document.body.classList.toggle("dark"); const isDark = document.body.classList.contains("dark"); localStorage.setItem("theme", isDark ? "dark" : "light"); themeToggle.innerHTML = isDark ? sunSVG : moonSVG; });
 
     function fillList(ul, items, dayKey, opts={}){
       ul.innerHTML = '';
@@ -904,9 +943,16 @@
       }
     }
 
+    // MODIFIED: The row rendering now adds crucial data attributes
     function rowForTask(t, dayKey, {completed=false}={}){
       const li = document.createElement('li');
       li.className = 'row';
+      // Add data attributes to the list item for action functions
+      li.dataset.taskId = t.id;
+      li.dataset.taskType = t.type;
+      if (t.type === 'template') {
+        li.dataset.templateId = t.templateId;
+      }
 
       const actions = document.createElement('div');
       actions.className='row-actions';
@@ -914,28 +960,29 @@
       archBtn.className='btn-archive';
       archBtn.textContent = 'Archive';
       archBtn.title = 'Move to Missed';
-      archBtn.addEventListener('click', (e)=>{ e.stopPropagation(); archiveTask(dayKey, t.id); });
+      // MODIFIED: Event listener now passes the required info
+      archBtn.addEventListener('click', (e)=>{ e.stopPropagation(); archiveTask(dayKey, t.id, t.type, t.templateId); });
+      
       const delBtn = document.createElement('button');
       delBtn.className='btn-delete';
       delBtn.textContent = 'Delete';
       delBtn.title = 'Delete task';
-      delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteTask(dayKey, t.id); });
+      // MODIFIED: Event listener now passes the required info
+      delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteTask(dayKey, t.id, t.type, t.templateId); });
       actions.append(archBtn, delBtn);
 
       const swipe = document.createElement('div');
       swipe.className='swipe';
 
-      // NEW
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = !!t.done;
-      
-      const cbWrap = document.createElement('label');   // invisible big hit area
+      const cbWrap = document.createElement('label');
       cbWrap.className = 'cb-hit';
       cbWrap.appendChild(cb);
       
-      // Keeping the same change handler
-      cb.addEventListener('change', ()=> setDone(dayKey, t.id, cb.checked));
+      // MODIFIED: Change handler also passes the required info
+      cb.addEventListener('change', ()=> setDone(dayKey, t.id, t.type, t.templateId, cb.checked));
 
       const content = document.createElement('div');
       content.className='task';
@@ -952,12 +999,10 @@
       swipe.append(cbWrap, content);
       li.append(actions, swipe);
 
-      enableSwipe(li, swipe); // iOS-like with snap
+      enableSwipe(li, swipe);
       return li;
     }
     
-    
-    // ===== Convert To 12 Hour =====
     function to12Hour(timeStr){
       let [h, m] = timeStr.split(":").map(Number);
       const ampm = h >= 12 ? "PM" : "AM";
@@ -966,174 +1011,125 @@
       return `${h}:${m.toString().padStart(2,"0")} ${ampm}`;
     }
 
-
-    // ===== Swipe (snap-to-open/close) =====
+    // ===== Swipe (snap-to-open/close) - UNCHANGED =====
     function enableSwipe(row, swipeEl){
       let startX=0, startTx=0, dragging=false, pointerId=null;
       const maxReveal = getCssVar('--swipe-width') || 144;
       const clamp = (v,min,max)=>Math.min(max,Math.max(min,v));
-      const getTx = () => {
-        const tr = getComputedStyle(swipeEl).transform;
-        if(tr && tr!=='none'){ const m = new DOMMatrixReadOnly(tr); return m.m41; }
-        return 0;
-      };
-
-      function onDown(e){
-        if(e.pointerType==='mouse' && e.buttons!==1) return;
-        dragging=true; pointerId=e.pointerId; swipeEl.setPointerCapture(pointerId);
-        startX = e.clientX; startTx = getTx();
-        swipeEl.style.transition='none';
-      }
-      function onMove(e){
-        if(!dragging) return;
-        const dx = e.clientX - startX;
-        const nx = clamp(startTx + dx, -maxReveal, 0);
-        swipeEl.style.transform = `translateX(${nx}px)`;
-      }
-      function snap(finalOpen){
-        swipeEl.style.transition = `transform var(--anim-mid) cubic-bezier(.2,.8,.2,1)`;
-        if(finalOpen){ swipeEl.classList.add('revealed'); swipeEl.style.transform = `translateX(${-maxReveal}px)`; }
-        else{ swipeEl.classList.remove('revealed'); swipeEl.style.transform = `translateX(0px)`; }
-      }
-      function onUp(){
-        if(!dragging) return;
-        dragging=false;
-        swipeEl.releasePointerCapture(pointerId);
-        const tx = getTx();
-        const threshold = -maxReveal*0.3; // 30% to open
-        snap(tx < threshold);
-      }
-
-      swipeEl.addEventListener('pointerdown', onDown);
-      swipeEl.addEventListener('pointermove', onMove);
-      swipeEl.addEventListener('pointerup', onUp);
-      swipeEl.addEventListener('pointercancel', onUp);
-      // tap outside to close if revealed
-      row.addEventListener('click', (e)=>{
-        if(swipeEl.classList.contains('revealed') && !e.target.closest('.row-actions')){
-          snap(false);
-        }
-      });
+      const getTx = () => { const tr = getComputedStyle(swipeEl).transform; if(tr && tr!=='none'){ const m = new DOMMatrixReadOnly(tr); return m.m41; } return 0; };
+      function onDown(e){ if(e.pointerType==='mouse' && e.buttons!==1) return; dragging=true; pointerId=e.pointerId; swipeEl.setPointerCapture(pointerId); startX = e.clientX; startTx = getTx(); swipeEl.style.transition='none'; }
+      function onMove(e){ if(!dragging) return; const dx = e.clientX - startX; const nx = clamp(startTx + dx, -maxReveal, 0); swipeEl.style.transform = `translateX(${nx}px)`; }
+      function snap(finalOpen){ swipeEl.style.transition = `transform var(--anim-mid) cubic-bezier(.2,.8,.2,1)`; if(finalOpen){ swipeEl.classList.add('revealed'); swipeEl.style.transform = `translateX(${-maxReveal}px)`; } else{ swipeEl.classList.remove('revealed'); swipeEl.style.transform = `translateX(0px)`; } }
+      function onUp(){ if(!dragging) return; dragging=false; swipeEl.releasePointerCapture(pointerId); const tx = getTx(); const threshold = -maxReveal*0.3; snap(tx < threshold); }
+      swipeEl.addEventListener('pointerdown', onDown); swipeEl.addEventListener('pointermove', onMove); swipeEl.addEventListener('pointerup', onUp); swipeEl.addEventListener('pointercancel', onUp);
+      row.addEventListener('click', (e)=>{ if(swipeEl.classList.contains('revealed') && !e.target.closest('.row-actions')){ snap(false); } });
     }
 
-    // ===== Mutations (with highlight) =====
-    function setDone(dayKey, id, done){
-      const arr = DATA[dayKey]||[]; const t = arr.find(x=>x.id===id); if(!t) return;
-      t.done = !!done; if(done) t.archived=false;
-      sortByStart(arr); save(DATA);
-      lastHighlight = { dayKey, id };
+    // ===== Mutations (MODIFIED for new data structure) =====
+    function ensureDayData(dayKey) {
+      if (!DATA[dayKey]) {
+        DATA[dayKey] = { mods: {}, added: [] };
+      }
+      return DATA[dayKey];
+    }
+    
+    function setDone(dayKey, taskId, taskType, templateId, isDone) {
+      const dayData = ensureDayData(dayKey);
+      if (taskType === 'custom') {
+        const task = (dayData.added || []).find(t => t.id === taskId);
+        if (task) task.done = isDone;
+      } else if (taskType === 'template') {
+        if (!dayData.mods) dayData.mods = {};
+        if (!dayData.mods[templateId]) dayData.mods[templateId] = {};
+        dayData.mods[templateId].done = isDone;
+        if (isDone) dayData.mods[templateId].deleted = false; // A completed task cannot be deleted
+      }
+      save(DATA);
+      lastHighlight = { dayKey, id: taskId };
       render();
     }
-    function archiveTask(dayKey, id){
-      const arr = DATA[dayKey]||[]; const t = arr.find(x=>x.id===id); if(!t) return;
-      t.archived = true; t.done = false; save(DATA);
-      lastHighlight = { dayKey, id };
+    
+    function deleteTask(dayKey, taskId, taskType, templateId) {
+      const dayData = ensureDayData(dayKey);
+      if (taskType === 'custom') {
+        dayData.added = (dayData.added || []).filter(t => t.id !== taskId);
+      } else if (taskType === 'template') {
+        if (!dayData.mods) dayData.mods = {};
+        if (!dayData.mods[templateId]) dayData.mods[templateId] = {};
+        dayData.mods[templateId].deleted = true;
+        dayData.mods[templateId].done = false; // A deleted task cannot be done
+      }
+      save(DATA);
       render();
     }
-    function deleteTask(dayKey, id){
-      DATA[dayKey] = (DATA[dayKey]||[]).filter(x=>x.id!==id);
-      save(DATA); render();
+    
+    function archiveTask(dayKey, taskId, taskType, templateId) {
+        // For both template and custom tasks, archiving for a day is the same as deleting it for that day.
+        deleteTask(dayKey, taskId, taskType, templateId);
     }
-    function clearWhere(dayKey, predicate){
-      DATA[dayKey] = (DATA[dayKey]||[]).filter(t=>!predicate(t));
-      save(DATA); render();
+
+    // NEW: Rewritten clear function for the new data structure
+    function clearWhere(dayKey, predicate) {
+      const dayData = ensureDayData(dayKey);
+      const allTasks = getDayTasks(dayKey); // Get the combined list
+      const tasksToRemove = allTasks.filter(predicate);
+      
+      if(tasksToRemove.length === 0) return;
+
+      // Filter out custom tasks to be removed
+      const customIdsToRemove = new Set(tasksToRemove.filter(t => t.type === 'custom').map(t => t.id));
+      dayData.added = (dayData.added || []).filter(t => !customIdsToRemove.has(t.id));
+
+      // Mark template tasks to be removed as deleted
+      const templateTasksToRemove = tasksToRemove.filter(t => t.type === 'template');
+      if (templateTasksToRemove.length > 0) {
+        if (!dayData.mods) dayData.mods = {};
+        templateTasksToRemove.forEach(t => {
+          if (!dayData.mods[t.templateId]) dayData.mods[t.templateId] = {};
+          dayData.mods[t.templateId].deleted = true;
+          dayData.mods[t.templateId].done = false;
+        });
+      }
+      
+      save(DATA);
+      render();
     }
+    
     function highlightRow(ref){
-      // try to find the row in all lists and flash it
-      const lists = [todayList, completedList, missedList, tomorrowList, tomorrowCompleted, tomorrowMissed];
-      for(const ul of lists){
-        const items = [...ul.querySelectorAll('.row')];
-        for(const li of items){
-          const label = li.querySelector('.meta b');
-          const time = li.querySelector('.meta small');
-          if(!label || !time) continue;
-          // best-effort flash based on text match
-          // (IDs are not in DOM; this is lightweight and good enough)
-        }
-      }
-      // Subtle flash on containers instead (cheap & consistent)
       [completedList, missedList, todayList, tomorrowList].forEach(el=>{
         if(el && el.childElementCount) { el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'), 260); }
       });
     }
 
-    // ===== Add Sheet =====
+    // ===== UI Functions (UNCHANGED) =====
     function openSheet() {
-      // 1. Save scroll position and apply freezing styles immediately.
-      // This causes the browser reflow.
       savedScrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${savedScrollY}px`;
       document.body.style.width = '100%';
-
-      // 2. Defer the UI update that triggers the animation.
-      // This gives the browser a moment to process the reflow before animating.
-      setTimeout(() => {
-        sheet.classList.add('open'); // This now smoothly triggers the slide-up animation
-        sheetBackdrop.style.display = 'block';
-        resetForm();
-      }, 0); // A timeout of 0ms is enough to push it to the next event loop tick.
+      setTimeout(() => { sheet.classList.add('open'); sheetBackdrop.style.display = 'block'; resetForm(); }, 0);
     }
-    
     function closeSheetFn() {
-      // 1. Removes the freezing styles from the body
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-
-      // 2. Instantly restore the saved scroll position
+      document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = '';
       window.scrollTo(0, savedScrollY);
-
-      // 3. Close the sheet
-      sheet.classList.remove('open');
-      sheetBackdrop.style.display = 'none';
+      sheet.classList.remove('open'); sheetBackdrop.style.display = 'none';
     }
-    
     function chooseDay(key,label){
       CHOSEN_DAY_KEY = key;
       taskForm.classList.remove('hidden');
       chosenDayLabel.textContent = `Adding to ${label}`;
-      const now = new Date(); // default next clean half-hour
-      const nextHalf = now.getMinutes()<=30 ? 30 : 60;
-      const startM = now.getHours()*60 + (nextHalf===60?0:30);
-      startInput.value = minToTime(startM);
-      endInput.value = minToTime(startM+60);
-      titleInput.focus();
+      const now = new Date(); const nextHalf = now.getMinutes()<=30 ? 30 : 60; const startM = now.getHours()*60 + (nextHalf===60?0:30);
+      startInput.value = minToTime(startM); endInput.value = minToTime(startM+60); titleInput.focus();
     }
     function resetForm(){
-      CHOSEN_DAY_KEY = null;
-      taskForm.classList.add('hidden');
-      chosenDayLabel.textContent='Choose a day:';
-      taskForm.reset();
-      
-      // reset the time displays
+      CHOSEN_DAY_KEY = null; taskForm.classList.add('hidden'); chosenDayLabel.textContent='Choose a day:'; taskForm.reset();
       document.querySelector('.custom-time-input[data-target="start"]').innerHTML = 'Start Time';
       document.querySelector('.custom-time-input[data-target="end"]').innerHTML = 'End Time';
     }
-
-    // ===== Tomorrow overlay =====
-    function openTomorrow(){
-      tomorrowOverlay.classList.add('show');
-      tomorrowOverlay.setAttribute('aria-hidden','false');
-      document.body.style.overflow = 'hidden';  // prevent page behind from scrolling
-    }
-    function closeTomorrowFn(){
-      tomorrowOverlay.classList.remove('show');
-      tomorrowOverlay.setAttribute('aria-hidden','true');
-      document.body.style.overflow = '';        // restore
-    }
-
-    // ===== Menu (3-dots) =====
-    function toggleMenu(show){
-      if(show===undefined) show = !menu.classList.contains('show');
-      if(show){ menu.classList.add('show'); }
-      else{ menu.classList.remove('show'); }
-    }
-    document.addEventListener('click', (e)=>{
-      if(menu.classList.contains('show') && !e.target.closest('#manageBtn') && !e.target.closest('#menu')){
-        toggleMenu(false);
-      }
-    });
+    function openTomorrow(){ tomorrowOverlay.classList.add('show'); tomorrowOverlay.setAttribute('aria-hidden','false'); document.body.style.overflow = 'hidden'; }
+    function closeTomorrowFn(){ tomorrowOverlay.classList.remove('show'); tomorrowOverlay.setAttribute('aria-hidden','true'); document.body.style.overflow = ''; }
+    function toggleMenu(show){ if(show===undefined) show = !menu.classList.contains('show'); if(show){ menu.classList.add('show'); } else{ menu.classList.remove('show'); } }
+    document.addEventListener('click', (e)=>{ if(menu.classList.contains('show') && !e.target.closest('#manageBtn') && !e.target.closest('#menu')){ toggleMenu(false); } });
 
     // ===== Events =====
     fab.addEventListener('click', openSheet);
@@ -1142,6 +1138,8 @@
     chooseToday.addEventListener('click', ()=> chooseDay(toKey(todayDate()), 'Today'));
     chooseTomorrow.addEventListener('click', ()=> chooseDay(toKey(tomorrowDate()), 'Tomorrow'));
     resetFormBtn.addEventListener('click', ()=> taskForm.reset());
+    
+    // MODIFIED: Submit listener adds a 'customTask'
     taskForm.addEventListener('submit', (e)=>{
       e.preventDefault();
       if(!CHOSEN_DAY_KEY){ alert('Choose Today or Tomorrow first.'); return; }
@@ -1150,244 +1148,111 @@
       const end = endInput.value;
       if(!title) return;
       if(timeToMin(end) <= timeToMin(start)){ alert('End time must be after start time.'); return; }
-      const arr = DATA[CHOSEN_DAY_KEY] || (DATA[CHOSEN_DAY_KEY]=[]);
-      arr.push(task(title, start, end)); sortByStart(arr); save(DATA);
+      const dayData = ensureDayData(CHOSEN_DAY_KEY);
+      if(!dayData.added) dayData.added = [];
+      dayData.added.push(customTask(title, start, end)); 
+      sortByStart(dayData.added); 
+      save(DATA);
       closeSheetFn(); render();
     });
 
     viewTomorrowBtn.addEventListener('click', openTomorrow);
     closeTomorrow.addEventListener('click', closeTomorrowFn);
-
     manageBtn.addEventListener('click', ()=> toggleMenu());
+    
+    // MODIFIED: Clear buttons use the new clearWhere logic
     menuClearCompleted.addEventListener('click', ()=>{
-      const tKey = toKey(todayDate());
-      clearWhere(tKey, t=>t.done);
+      clearWhere(toKey(todayDate()), t => t.done);
       toggleMenu(false);
     });
     menuClearMissed.addEventListener('click', ()=>{
       const tKey = toKey(todayDate());
       const nowMin = new Date().getHours()*60 + new Date().getMinutes();
-      clearWhere(tKey, t=>(!t.done && (t.archived || timeToMin(t.end)<nowMin)));
+      clearWhere(tKey, t => !t.done && timeToMin(t.end) < nowMin);
       toggleMenu(false);
     });
     menuViewTomorrow.addEventListener('click', ()=>{ toggleMenu(false); openTomorrow(); });
-
-    clearTomorrowCompleted.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t=>t.done));
-    clearTomorrowMissed.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t=>(!t.done && t.archived)));
+    clearTomorrowCompleted.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t => t.done));
+    clearTomorrowMissed.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t => !t.done)); // For tomorrow, missed is just not done.
 
     // ===== Ticking / date change =====
     function tick(){ render(); }
     setInterval(tick, 30*1000);
     let lastKey = toKey(todayDate());
-    setInterval(()=>{
-      const k = toKey(todayDate());
-      if(k!==lastKey){ lastKey=k; render(); }
-    }, 60*1000);
+    setInterval(()=>{ const k = toKey(todayDate()); if(k!==lastKey){ lastKey=k; render(); } }, 60*1000);
 
     // ===== Prevent zooming (extra safety on mobile & desktop Ctrl+wheel) =====
     let lastTouchEnd = 0;
-    document.addEventListener('touchend', function (e) {
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) { e.preventDefault(); }
-      lastTouchEnd = now;
-    }, {passive:false});
-    document.addEventListener('gesturestart', e => e.preventDefault()); // iOS Safari
+    document.addEventListener('touchend', function (e) { const now = Date.now(); if (now - lastTouchEnd <= 300) { e.preventDefault(); } lastTouchEnd = now; }, {passive:false});
+    document.addEventListener('gesturestart', e => e.preventDefault());
     document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, {passive:false});
     
-    
-    // ===== Custom Time Picker Logic =====
-    const ITEM_HEIGHT = 48; // Must match --item-height in CSS
-    
-    // START: new populate function for infinite time scroll
+    // ===== Custom Time Picker Logic (UNCHANGED) =====
+    const ITEM_HEIGHT = 48;
     function populateTimePickers() {
-      const NUM_SETS = 3; // A middle set with a buffer set before and after
-    
-      // Hours (1-12) - Looping
-      for (let s = 0; s < NUM_SETS; s++) {
-        for (let i = 1; i <= 12; i++) {
-          const item = document.createElement('div');
-          item.className = 'picker-item';
-          item.textContent = pad(i);
-          item.dataset.value = i;
-          hourPicker.appendChild(item);
-        }
-      }
-    
-      // Minutes (0-59) - Looping
-      for (let s = 0; s < NUM_SETS; s++) {
-        for (let i = 0; i < 60; i++) {
-          const item = document.createElement('div');
-          item.className = 'picker-item';
-          item.textContent = pad(i);
-          item.dataset.value = i;
-          minutePicker.appendChild(item);
-        }
-      }
-    
-      // AM/PM (No loop needed)
-      ['AM', 'PM'].forEach(val => {
-        const item = document.createElement('div');
-        item.className = 'picker-item';
-        item.textContent = val;
-        item.dataset.value = val;
-        ampmPicker.appendChild(item);
-      });
+      const NUM_SETS = 3;
+      for (let s = 0; s < NUM_SETS; s++) for (let i = 1; i <= 12; i++) { const item = document.createElement('div'); item.className = 'picker-item'; item.textContent = pad(i); item.dataset.value = i; hourPicker.appendChild(item); }
+      for (let s = 0; s < NUM_SETS; s++) for (let i = 0; i < 60; i++) { const item = document.createElement('div'); item.className = 'picker-item'; item.textContent = pad(i); item.dataset.value = i; minutePicker.appendChild(item); }
+      ['AM', 'PM'].forEach(val => { const item = document.createElement('div'); item.className = 'picker-item'; item.textContent = val; item.dataset.value = val; ampmPicker.appendChild(item); });
     }
-    // END: Replace with this function
-    
     function highlightCenter() {
       [hourPicker, minutePicker, ampmPicker].forEach(picker => {
-        const pickerRect = picker.getBoundingClientRect();
-        const center = pickerRect.top + pickerRect.height / 2;
+        const pickerRect = picker.getBoundingClientRect(); const center = pickerRect.top + pickerRect.height / 2;
         picker.querySelectorAll('.picker-item').forEach(item => {
-          const itemRect = item.getBoundingClientRect();
-          const itemCenter = itemRect.top + itemRect.height / 2;
-          if (Math.abs(center - itemCenter) < ITEM_HEIGHT / 2) {
-            item.style.opacity = '1';
-            item.style.color = 'var(--fg)';
-          } else {
-            item.style.opacity = '0.4';
-            item.style.color = 'var(--muted)';
-          }
+          const itemRect = item.getBoundingClientRect(); const itemCenter = itemRect.top + itemRect.height / 2;
+          if (Math.abs(center - itemCenter) < ITEM_HEIGHT / 2) { item.style.opacity = '1'; item.style.color = 'var(--fg)'; } else { item.style.opacity = '0.4'; item.style.color = 'var(--muted)'; }
         });
       });
     }
-    
-
     function getPickerValues() {
-      // Use modulo to get the correct value from the looped list
       const hour = (Math.round(hourPicker.scrollTop / ITEM_HEIGHT) % 12) + 1;
       const minute = Math.round(minutePicker.scrollTop / ITEM_HEIGHT) % 60;
       const ampm = Math.round(ampmPicker.scrollTop / ITEM_HEIGHT) === 0 ? 'AM' : 'PM';
       return { hour, minute, ampm };
     }
-    
     function updateTimeOnTarget() {
       if (!activeTimePickerTarget) return;
       const { hour, minute, ampm } = getPickerValues();
-      
-      // Updating the display div's innerHTML to show the formatted time
       const displayDiv = document.querySelector(`.custom-time-input[data-target="${activeTimePickerTarget}"]`);
       displayDiv.innerHTML = `<span class="hour">${pad(hour)}</span>:<span class="minute">${pad(minute)}</span> <span class="ampm">${ampm}</span>`;
-    
-      // Converting to 24-hour for the hidden input (this logic remains the same)
-      let hour24 = hour;
-      if (ampm === 'PM' && hour !== 12) hour24 += 12;
-      if (ampm === 'AM' && hour === 12) hour24 = 0; // Midnight case
-      
+      let hour24 = hour; if (ampm === 'PM' && hour !== 12) hour24 += 12; if (ampm === 'AM' && hour === 12) hour24 = 0;
       const hiddenInput = document.getElementById(activeTimePickerTarget);
       hiddenInput.value = `${pad(hour24)}:${pad(minute)}`;
     }
-    
-
     let scrollEndTimer;
-    
-    // START: this is stable and correct
     function handleInfiniteScroll(picker) {
-        // If a reset is already queued, do nothing to prevent race conditions.
-        if (picker.isResetting) return;
-    
-        const isHourPicker = picker.id === 'hourPicker';
-        const itemsPerSet = isHourPicker ? 12 : 60;
-        const singleSetHeight = itemsPerSet * ITEM_HEIGHT;
-    
-        let scrollAdjustment = 0;
-    
-        // This is the stable "<" condition that works best.
-        if (picker.scrollTop < singleSetHeight) {
-            scrollAdjustment = singleSetHeight;
-        } 
-        // The downward scroll logic is fine.
-        else if (picker.scrollTop >= singleSetHeight * 2) {
-            scrollAdjustment = -singleSetHeight;
-        }
-    
-        // If a jump is needed...
-        if (scrollAdjustment !== 0) {
-            picker.isResetting = true;
-            requestAnimationFrame(() => {
-                picker.scrollTop += scrollAdjustment;
-                picker.isResetting = false;
-            });
-        }
+      if (picker.isResetting) return;
+      const isHourPicker = picker.id === 'hourPicker';
+      const itemsPerSet = isHourPicker ? 12 : 60;
+      const singleSetHeight = itemsPerSet * ITEM_HEIGHT;
+      let scrollAdjustment = 0;
+      if (picker.scrollTop < singleSetHeight) { scrollAdjustment = singleSetHeight; } 
+      else if (picker.scrollTop >= singleSetHeight * 2) { scrollAdjustment = -singleSetHeight; }
+      if (scrollAdjustment !== 0) { picker.isResetting = true; requestAnimationFrame(() => { picker.scrollTop += scrollAdjustment; picker.isResetting = false; }); }
     }
-    // END: this is final, flicker-free version (it's really not)
-    
     [hourPicker, minutePicker, ampmPicker].forEach(picker => {
       picker.addEventListener('scroll', () => {
-        // Handle the infinite loop for hour and minute pickers
-        if (picker.id === 'hourPicker' || picker.id === 'minutePicker') {
-          handleInfiniteScroll(picker);
-        }
-        
-        highlightCenter();
-        
-        // Using a timer to update the final value only when scrolling stops
-        clearTimeout(scrollEndTimer);
-        scrollEndTimer = setTimeout(updateTimeOnTarget, 150);
+        if (picker.id === 'hourPicker' || picker.id === 'minutePicker') { handleInfiniteScroll(picker); }
+        highlightCenter(); clearTimeout(scrollEndTimer); scrollEndTimer = setTimeout(updateTimeOnTarget, 150);
       });
     });
-    
     function showTimePicker(e) {
-      document.body.style.overflow = 'hidden';
-      const trigger = e.currentTarget;
-      activeTimePickerTarget = trigger.dataset.target;
-      const hiddenInput = document.getElementById(activeTimePickerTarget);
-    
-      let [h24, m] = hiddenInput.value.split(':').map(Number);
-      let ampm = h24 >= 12 ? 'PM' : 'AM';
-      let h12 = h24 % 12;
-      if (h12 === 0) h12 = 12;
-    
-      // Scroll to the middle set of numbers for a seamless loop
-      const hourSetHeight = 12 * ITEM_HEIGHT;
-      hourPicker.scrollTop = hourSetHeight + ((h12 - 1) * ITEM_HEIGHT);
-    
-      const minuteSetHeight = 60 * ITEM_HEIGHT;
-      minutePicker.scrollTop = minuteSetHeight + (m * ITEM_HEIGHT);
-      
+      document.body.style.overflow = 'hidden'; const trigger = e.currentTarget; activeTimePickerTarget = trigger.dataset.target;
+      const hiddenInput = document.getElementById(activeTimePickerTarget); let [h24, m] = hiddenInput.value.split(':').map(Number);
+      let ampm = h24 >= 12 ? 'PM' : 'AM'; let h12 = h24 % 12; if (h12 === 0) h12 = 12;
+      const hourSetHeight = 12 * ITEM_HEIGHT; hourPicker.scrollTop = hourSetHeight + ((h12 - 1) * ITEM_HEIGHT);
+      const minuteSetHeight = 60 * ITEM_HEIGHT; minutePicker.scrollTop = minuteSetHeight + (m * ITEM_HEIGHT);
       ampmPicker.scrollTop = (ampm === 'AM' ? 0 : 1) * ITEM_HEIGHT;
-      
-      highlightCenter();
-      timePickerOverlay.classList.add('show');
+      highlightCenter(); timePickerOverlay.classList.add('show');
     }
-    
-    function hideTimePicker() {
-      document.body.style.overflow = ''; // <-- ADD THIS LINE
-      updateTimeOnTarget();
-      timePickerOverlay.classList.remove('show');
-      activeTimePickerTarget = null;
-    }
-    
-    document.querySelectorAll('[data-role="time-picker-trigger"]').forEach(el => {
-      el.addEventListener('click', showTimePicker);
-    });
-    timePickerOverlay.addEventListener('click', e => {
-      if (e.target === timePickerOverlay) {
-        hideTimePicker();
-      }
-    });
-    
-    // Prevent background scroll via wheel or touch on the overlay itself
-    timePickerOverlay.addEventListener('wheel', e => {
-        // Allow scrolling ONLY if the mouse is over a picker column.
-        // Block scrolling on the backdrop, separators, and container padding.
-        if (!e.target.closest('.picker-column')) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
-    timePickerOverlay.addEventListener('touchmove', e => {
-        // Allow scrolling ONLY if the touch is over a picker column.
-        if (!e.target.closest('.picker-column')) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
+    function hideTimePicker() { document.body.style.overflow = ''; updateTimeOnTarget(); timePickerOverlay.classList.remove('show'); activeTimePickerTarget = null; }
+    document.querySelectorAll('[data-role="time-picker-trigger"]').forEach(el => { el.addEventListener('click', showTimePicker); });
+    timePickerOverlay.addEventListener('click', e => { if (e.target === timePickerOverlay) { hideTimePicker(); } });
+    timePickerOverlay.addEventListener('wheel', e => { if (!e.target.closest('.picker-column')) { e.preventDefault(); } }, { passive: false });
+    timePickerOverlay.addEventListener('touchmove', e => { if (!e.target.closest('.picker-column')) { e.preventDefault(); } }, { passive: false });
     populateTimePickers();
-    // ===== END Custom Time Picker Logic =====
 
-    // Initial paint
+    // ===== Initial paint =====
     render();
   })();
   </script>
