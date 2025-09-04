@@ -862,6 +862,37 @@
     const clearTomorrowMissed = document.getElementById('clearTomorrowMissed');
     
     
+    // ===== Telegram Notifier (SECURE) =====
+    // A Map to keep track of notifications sent for each task to avoid spam
+    let sentNotifications = new Map();
+    
+    /**
+     * Sends a message via our secure Cloudflare Function.
+     * @param {string} text The message to send.
+     */
+    function sendTelegramMessage(text) {
+      console.log("sendTelegramMessage was called with message:", text); // <-- ADD THIS LINE
+      // This relative URL points to the function we created in Phase 2
+      const url = '/api/notify';
+    
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      })
+      .then(response => {
+        if (!response.ok) {
+          // Log an error if our function had a problem
+          console.error(`Server notification failed with status: ${response.status}`);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to send notification request:', error);
+      });
+    }
+
+    
+    
     // ===== Rendering =====
     function render(){
       const tKey = toKey(todayDate());
@@ -1032,18 +1063,37 @@
       }
       return DATA[dayKey];
     }
+
     
     function setDone(dayKey, taskId, taskType, templateId, isDone) {
+      console.log("Checkbox clicked, setDone function was called!"); // <-- ADD THIS LINE
       const dayData = ensureDayData(dayKey);
+      let taskTitle = '';
+    
       if (taskType === 'custom') {
         const task = (dayData.added || []).find(t => t.id === taskId);
-        if (task) task.done = isDone;
+        if (task) {
+          task.done = isDone;
+          taskTitle = task.title;
+        }
       } else if (taskType === 'template') {
         if (!dayData.mods) dayData.mods = {};
         if (!dayData.mods[templateId]) dayData.mods[templateId] = {};
         dayData.mods[templateId].done = isDone;
-        if (isDone) dayData.mods[templateId].deleted = false; // A completed task cannot be deleted
+        if (isDone) dayData.mods[templateId].deleted = false;
+    
+        const date = new Date(dayKey.replace(/-/g, '/'));
+        const weekday = date.getDay();
+        const template = (WEEKLY_TEMPLATES[weekday] || []).find(t => getTemplateId(t) === templateId);
+        if(template) taskTitle = template.title;
       }
+    
+      if (isDone && taskTitle) {
+        sendTelegramMessage(`✅ Completed: ${taskTitle}`);
+        const uniqueTaskKey = `${dayKey}-${taskId || templateId}`;
+        sentNotifications.set(`${uniqueTaskKey}-completed`, true);
+      }
+    
       save(DATA);
       lastHighlight = { dayKey, id: taskId };
       render();
@@ -1174,12 +1224,65 @@
     menuViewTomorrow.addEventListener('click', ()=>{ toggleMenu(false); openTomorrow(); });
     clearTomorrowCompleted.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t => t.done));
     clearTomorrowMissed.addEventListener('click', ()=> clearWhere(toKey(tomorrowDate()), t => !t.done)); // For tomorrow, missed is just not done.
+    
+    // ===== Notification Logic =====
+    function checkAndSendNotifications() {
+        const now = new Date();
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const tKey = toKey(todayDate());
+        const allTodayTasks = getDayTasks(tKey);
+    
+        for (const task of allTodayTasks) {
+            if (task.done) continue;
+    
+            const startTime = timeToMin(task.start);
+            const endTime = timeToMin(task.end);
+            const uniqueTaskKey = `${tKey}-${task.id || task.templateId}`;
+    
+            // 1. Send notification when a task starts
+            if (nowMin === startTime && !sentNotifications.has(`${uniqueTaskKey}-start`)) {
+                sendTelegramMessage(`Task: ${task.title}`);
+                sentNotifications.set(`${uniqueTaskKey}-start`, true);
+            }
+    
+            // 2. Send notification for a missed task (1 minute after it ends)
+            if (nowMin === endTime + 1 && !sentNotifications.has(`${uniqueTaskKey}-completed`)) {
+                 if (!sentNotifications.has(`${uniqueTaskKey}-missed`)) {
+                    sendTelegramMessage(`Missed: ${task.title}`);
+                    sentNotifications.set(`${uniqueTaskKey}-missed`, true);
+                 }
+            }
+        }
+    }
+    
+    // Clears old notification statuses when the day changes
+    function cleanupNotifications() {
+        const yesterdayKey = toKey(new Date(Date.now() - 86400000));
+        for (const key of sentNotifications.keys()) {
+            if (key.startsWith(yesterdayKey)) {
+                sentNotifications.delete(key);
+            }
+        }
+    }
+    // --- END:  Notification Logic ---
 
     // ===== Ticking / date change =====
-    function tick(){ render(); }
+    function tick(){
+      render();
+      checkAndSendNotifications(); // Check for notifications on every tick
+    }
+    // We check every 30 seconds to catch the start/end times of tasks.
     setInterval(tick, 30*1000);
+    
     let lastKey = toKey(todayDate());
-    setInterval(()=>{ const k = toKey(todayDate()); if(k!==lastKey){ lastKey=k; render(); } }, 60*1000);
+    setInterval(()=>{
+      const k = toKey(todayDate());
+      if(k!==lastKey){
+        lastKey=k;
+        cleanupNotifications(); // Clean up old notification flags on day change
+        render();
+      }
+    }, 60*1000);
 
     // ===== Prevent zooming (extra safety on mobile & desktop Ctrl+wheel) =====
     let lastTouchEnd = 0;
